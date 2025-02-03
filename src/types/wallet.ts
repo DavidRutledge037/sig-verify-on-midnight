@@ -29,4 +29,22 @@ export type WalletError =
     | 'NOT_CONNECTED'
     | 'WRONG_NETWORK'
     | 'REJECTED'
-    | 'FAILED'; 
+    | 'FAILED';
+
+export interface WalletProvider {
+  connect(): Promise<boolean>;
+  getAddress(): Promise<string | null>;
+  signMessage(message: string): Promise<string | null>;
+}
+
+declare global {
+  interface Window {
+    cardano?: {
+      lace?: {
+        enable: () => Promise<boolean>;
+        getUsedAddresses: () => Promise<string[]>;
+        signData: (address: string, message: string) => Promise<string>;
+      };
+    };
+  }
+} 
