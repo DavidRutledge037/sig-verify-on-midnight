@@ -1,3 +1,5 @@
+import { jest } from '@jest/globals';
+import '@testing-library/jest-dom';
 import fs from 'fs';
 import { TextEncoder, TextDecoder } from 'util';
 
@@ -9,4 +11,19 @@ fs.clone = function() {
     return Object.assign({}, this);
 };
 
-global.fs = fs; 
+global.fs = fs;
+
+// Mock window.matchMedia
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: jest.fn().mockImplementation(query => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn(),
+  })),
+}); 

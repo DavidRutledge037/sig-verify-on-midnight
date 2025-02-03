@@ -1,35 +1,34 @@
 import React from 'react';
-import { useWallet } from '../contexts/WalletContext.js';
-import { formatDistance } from 'date-fns';
+import { useWallet } from '../contexts/WalletContext';
 
-export function WalletTransactions() {
-    const { transactions } = useWallet();
+export const WalletTransactions: React.FC = () => {
+    const { transactions = [] } = useWallet();
+    console.log('Current transactions:', transactions); // Debug log
 
     return (
         <div className="wallet-transactions">
             <h3>Recent Transactions</h3>
             <div className="transaction-list">
-                {transactions.length === 0 ? (
-                    <p className="no-transactions">No transactions yet</p>
-                ) : (
-                    transactions.map(tx => (
-                        <div key={tx.hash} className={`transaction-item ${tx.status}`}>
-                            <div className="transaction-info">
-                                <span className="type">{tx.type}</span>
-                                <span className="hash">
-                                    {tx.hash.slice(0, 8)}...{tx.hash.slice(-6)}
-                                </span>
-                            </div>
-                            <div className="transaction-status">
+                {Array.isArray(transactions) && transactions.length > 0 ? (
+                    transactions.map((tx) => (
+                        <div key={tx.id} className="transaction">
+                            <div className="transaction-details">
                                 <span className="status">{tx.status}</span>
-                                <span className="time">
-                                    {formatDistance(tx.timestamp, new Date(), { addSuffix: true })}
-                                </span>
+                                {tx.hash && (
+                                    <div className="hash-container">
+                                        <span className="type">{tx.type}</span>
+                                        <span className="hash">
+                                            {tx.hash.slice(0, 8)}...{tx.hash.slice(-6)}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ))
+                ) : (
+                    <p className="no-transactions">No transactions yet</p>
                 )}
             </div>
         </div>
     );
-} 
+}; 
