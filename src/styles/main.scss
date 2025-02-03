@@ -1,0 +1,43 @@
+.document-workflow {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+
+    .workflow-steps {
+        background: #fff;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+
+    .error {
+        color: #d32f2f;
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 4px;
+        background: #ffebee;
+    }
+
+    .success {
+        color: #388e3c;
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 4px;
+        background: #e8f5e9;
+    }
+
+    button {
+        background: #1976d2;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        
+        &:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+    }
+} 

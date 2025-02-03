@@ -1,0 +1,114 @@
+.wallet-status {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 1rem;
+    margin: 1rem 0;
+
+    &.loading {
+        text-align: center;
+        color: #666;
+    }
+
+    &.error {
+        background: #fff3f3;
+        border: 1px solid #ffcdd2;
+
+        .error-message {
+            color: #d32f2f;
+            margin: 0 0 1rem;
+        }
+
+        button {
+            background: #d32f2f;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+
+            &:hover {
+                background: #c62828;
+            }
+        }
+    }
+
+    .wallet-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #eee;
+
+        .wallet-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+
+            .address {
+                font-family: monospace;
+                background: #f5f5f5;
+                padding: 0.25rem 0.5rem;
+                border-radius: 4px;
+            }
+
+            .balance {
+                font-weight: 500;
+                color: #2e7d32;
+            }
+        }
+    }
+}
+
+.transaction-list {
+    .transaction-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem;
+        border-radius: 4px;
+        margin-bottom: 0.5rem;
+        background: #f5f5f5;
+
+        &.pending {
+            background: #fff3e0;
+        }
+
+        &.confirmed {
+            background: #e8f5e9;
+        }
+
+        &.failed {
+            background: #ffebee;
+        }
+
+        .transaction-info {
+            .type {
+                font-weight: 500;
+                margin-right: 1rem;
+            }
+
+            .hash {
+                font-family: monospace;
+                color: #666;
+            }
+        }
+
+        .transaction-status {
+            text-align: right;
+
+            .status {
+                display: block;
+                font-weight: 500;
+                text-transform: capitalize;
+            }
+
+            .time {
+                display: block;
+                font-size: 0.875rem;
+                color: #666;
+            }
+        }
+    }
+} 
