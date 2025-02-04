@@ -35,6 +35,7 @@ export interface WalletProvider {
   connect(): Promise<boolean>;
   getAddress(): Promise<string | null>;
   signMessage(message: string): Promise<string | null>;
+  disconnect(): Promise<void>;
 }
 
 declare global {

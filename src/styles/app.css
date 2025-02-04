@@ -61,8 +61,17 @@
 }
 
 .connect-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
   background: #007bff;
   color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
 }
 
 .disconnect-button {
@@ -104,11 +113,18 @@
 }
 
 .error-message {
-  padding: 1rem;
-  background: #f8d7da;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.error-dismiss {
+  background: none;
+  border: none;
   color: #721c24;
-  border-radius: 4px;
-  text-align: center;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
 }
 
 /* Add to existing app.css */
@@ -117,6 +133,8 @@
   justify-content: center;
   align-items: center;
   padding: 2rem;
+  width: 20px;
+  height: 20px;
 }
 
 .spinner {
@@ -146,14 +164,22 @@
   margin: 2rem 0;
 }
 
+.file-input-label {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  background: #f8f9fa;
+  border: 2px dashed #dee2e6;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
 .file-input {
-  display: block;
-  margin: 1rem 0;
+  display: none;
 }
 
 .file-name {
-  color: #666;
-  margin-top: 0.5rem;
+  margin-top: 1rem;
+  color: #6c757d;
 }
 
 .sign-button {
@@ -181,4 +207,135 @@
 .signature-result h3 {
   color: #28a745;
   margin-bottom: 0.5rem;
+}
+
+/* Wallet Connect Additional Styles */
+.wallet-warning {
+  color: #856404;
+  background-color: #fff3cd;
+  border: 1px solid #ffeeba;
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin-top: 1rem;
+}
+
+.wallet-warning a {
+  color: #533f03;
+  text-decoration: underline;
+}
+
+.wallet-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.address {
+  font-family: monospace;
+  background: #f8f9fa;
+  padding: 0.5rem;
+  border-radius: 4px;
+}
+
+/* Add to existing styles */
+.dashboard {
+    padding: 2rem;
+}
+
+.dashboard-content {
+    display: grid;
+    gap: 2rem;
+    margin-top: 1rem;
+}
+
+.wallet-section,
+.stats-section {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.stat-box {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.stat-label {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #212529;
+    margin-top: 0.5rem;
+}
+
+/* Transaction History Styles */
+.transaction-history {
+    padding: 2rem;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-top: 2rem;
+}
+
+.transaction-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.transaction-icon {
+    font-size: 1.5rem;
+    margin-right: 1rem;
+}
+
+.transaction-details {
+    flex: 1;
+}
+
+.transaction-details h3 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.transaction-date {
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+.transaction-status {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
+.status-completed {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-failed {
+    background: #f8d7da;
+    color: #721c24;
 } 
