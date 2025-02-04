@@ -1,7 +1,7 @@
 import { DIDManagement } from './DIDManagement';
 import { CryptoService } from './CryptoService';
 import { SignedDocument, DocumentSigningOptions } from '../types/Document';
-import { DIDDocument, VerificationMethod } from '../types/DID';
+import { MidnightDIDDocument, MidnightVerificationMethod } from '../types/DID';
 import {
     EmptyContentError,
     NoVerificationMethodsError,
@@ -32,7 +32,7 @@ export class DocumentSigning {
             throw new EmptyContentError();
         }
 
-        const didDoc = await this.didManagement.resolveDID(signerDID) as DIDDocument;
+        const didDoc = await this.didManagement.resolveDID(signerDID) as MidnightDIDDocument;
         
         if (!didDoc.verificationMethod || didDoc.verificationMethod.length === 0) {
             throw new NoVerificationMethodsError();
@@ -44,20 +44,26 @@ export class DocumentSigning {
             throw new KeyNotFoundError(keyId || 'default');
         }
 
-        if (!verificationMethod.privateKey) {
+        if (!verificationMethod.privateKeyHex) {
             throw new PrivateKeyNotAvailableError();
         }
 
         try {
-            const signature = await this.cryptoService.sign(
+            const { signature, params } = await this.cryptoService.sign(
                 content,
-                verificationMethod.privateKey,
-                verificationMethod.algorithm
+                verificationMethod.privateKeyHex
             );
+
+            // Update signature params with verification method
+            params.verificationMethod = verificationMethod.id;
+            if (options?.proofPurpose) {
+                params.proofPurpose = options.proofPurpose;
+            }
 
             return {
                 content,
                 signature,
+                signatureParams: params,
                 signerDID,
                 keyId: keyId || verificationMethod.id.split('#')[1]
             };
@@ -74,7 +80,7 @@ export class DocumentSigning {
             throw new InvalidDocumentFormatError();
         }
 
-        const didDoc = await this.didManagement.resolveDID(document.signerDID) as DIDDocument;
+        const didDoc = await this.didManagement.resolveDID(document.signerDID) as MidnightDIDDocument;
         
         try {
             const verificationMethod = this.findVerificationMethod(didDoc, document.keyId);
@@ -83,22 +89,35 @@ export class DocumentSigning {
                 return false;
             }
 
+            // Verify the signature matches the verification method
+            if (verificationMethod.id !== document.signatureParams.verificationMethod) {
+                return false;
+            }
+
+            // Verify timestamp is not in the future
+            const signatureDate = new Date(document.signatureParams.created);
+            if (signatureDate > new Date()) {
+                return false;
+            }
+
             return await this.cryptoService.verify(
                 document.content,
                 document.signature,
-                verificationMethod.publicKey,
-                verificationMethod.algorithm
+                verificationMethod.publicKeyHex,
+                document.signatureParams
             );
         } catch (error) {
             if (error instanceof CryptoServiceError) {
-                // Log the error but return false for verification failures
                 console.error('Verification failed:', error);
             }
             return false;
         }
     }
 
-    private findVerificationMethod(didDoc: DIDDocument, keyId?: string): VerificationMethod | undefined {
+    private findVerificationMethod(
+        didDoc: MidnightDIDDocument, 
+        keyId?: string
+    ): MidnightVerificationMethod | undefined {
         if (!keyId) {
             return didDoc.verificationMethod[0];
         }
@@ -111,6 +130,11 @@ export class DocumentSigning {
             typeof document.content === 'string' &&
             typeof document.signature === 'string' &&
             typeof document.signerDID === 'string' &&
+            document.signatureParams &&
+            typeof document.signatureParams.type === 'string' &&
+            typeof document.signatureParams.created === 'string' &&
+            typeof document.signatureParams.verificationMethod === 'string' &&
+            typeof document.signatureParams.proofPurpose === 'string' &&
             (!document.keyId || typeof document.keyId === 'string')
         );
     }

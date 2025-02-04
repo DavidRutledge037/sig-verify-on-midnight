@@ -1,3 +1,6 @@
+import { CryptoAlgorithm } from './DID';
+import { MidnightSignatureParams } from './DID';
+
 export interface Document {
     id: string;
     owner: string;
@@ -34,11 +37,11 @@ export enum DocumentStatus {
 export interface SignedDocument {
     content: string;
     signature: string;
+    signatureParams: MidnightSignatureParams;
     signerDID: string;
     keyId?: string;
 }
 
 export interface DocumentSigningOptions {
-    algorithm?: CryptoAlgorithm;
-    keyId?: string;
+    proofPurpose?: 'authentication' | 'assertionMethod';
 } 

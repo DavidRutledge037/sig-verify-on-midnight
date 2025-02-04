@@ -3,6 +3,8 @@ import { DocumentSigning } from '../../services/DocumentSigning';
 import { CryptoService } from '../../services/CryptoService';
 import { DIDManagement } from '../../services/DIDManagement';
 import { DIDResolver } from '../../services/DIDResolver';
+import { hashMessage, recoverMessageAddress, signMessage } from 'viem'
+import type { Hash, Hex } from 'viem'
 
 class TestDIDResolver implements DIDResolver {
     private keyPairs: { [key: string]: CryptoKeyPair } = {};
@@ -135,4 +137,40 @@ describe('Document Signing Integration', () => {
         // Ensure signatures are different
         expect(signature1.signature).not.toBe(signature2.signature);
     });
-}); 
+});
+
+export class CryptoService {
+    async sign(
+        content: string,
+        privateKey: Hex,
+    ): Promise<Hex> {
+        try {
+            return await signMessage({
+                message: content,
+                privateKey
+            })
+        } catch (error) {
+            throw new SigningError(error as Error)
+        }
+    }
+
+    async verify(
+        content: string,
+        signature: Hex,
+        address: Hex
+    ): Promise<boolean> {
+        try {
+            const recoveredAddress = await recoverMessageAddress({
+                message: content,
+                signature
+            })
+            return recoveredAddress.toLowerCase() === address.toLowerCase()
+        } catch (error) {
+            throw new VerificationError(error as Error)
+        }
+    }
+
+    hashMessage(content: string): Hash {
+        return hashMessage(content)
+    }
+} 
