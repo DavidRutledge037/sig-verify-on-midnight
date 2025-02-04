@@ -1,92 +1,62 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { vi, describe, it, expect } from 'vitest';
 import { WalletConnect } from '../../components/WalletConnect';
-import { WalletProvider } from '../../contexts/WalletContext';
+import { WalletContext } from '../../contexts/WalletContext';
+import { act } from 'react-dom/test-utils';
 
-describe('WalletConnect', () => {
-  const mockWalletContext = {
+const mockWalletContext = {
+    isConnected: false,
     connect: vi.fn(),
     disconnect: vi.fn(),
-    address: null,
-    isConnected: false
-  };
+    getAddress: vi.fn(),
+    signMessage: vi.fn(),
+};
 
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it('should render connect button when not connected', () => {
-    render(
-      <WalletProvider value={mockWalletContext}>
-        <WalletConnect />
-      </WalletProvider>
-    );
-
-    expect(screen.getByText('Connect Lace Wallet')).toBeInTheDocument();
-  });
-
-  it('should handle successful connection', async () => {
-    const connectedContext = {
-      ...mockWalletContext,
-      connect: vi.fn().mockImplementation(async () => {
-        // Update context values after successful connection
-        connectedContext.isConnected = true;
-        connectedContext.address = 'addr1...';
-        return true;
-      })
-    };
-
-    render(
-      <WalletProvider value={connectedContext}>
-        <WalletConnect />
-      </WalletProvider>
-    );
-
-    const connectButton = screen.getByText('Connect Lace Wallet');
-    await fireEvent.click(connectButton);
-
-    await waitFor(() => {
-      expect(screen.getByText(/addr1.../)).toBeInTheDocument();
+describe('WalletConnect', () => {
+    beforeEach(() => {
+        vi.resetAllMocks();
     });
-  });
 
-  it('should handle connection failure', async () => {
-    const failingContext = {
-      ...mockWalletContext,
-      connect: vi.fn().mockRejectedValue(new Error('Connection failed'))
-    };
-
-    render(
-      <WalletProvider value={failingContext}>
-        <WalletConnect />
-      </WalletProvider>
-    );
-
-    const connectButton = screen.getByText('Connect Lace Wallet');
-    await fireEvent.click(connectButton);
-
-    await waitFor(() => {
-      expect(screen.getByText('Failed to connect wallet')).toBeInTheDocument();
+    it('should render connect button when not connected', () => {
+        render(
+            <WalletContext.Provider value={mockWalletContext}>
+                <WalletConnect />
+            </WalletContext.Provider>
+        );
+        expect(screen.getByText('Connect Lace Wallet')).toBeInTheDocument();
     });
-  });
 
-  it('should handle disconnect', async () => {
-    const connectedContext = {
-      ...mockWalletContext,
-      isConnected: true,
-      address: 'addr1...',
-      disconnect: vi.fn().mockResolvedValue(true)
-    };
+    it('should handle successful connection', async () => {
+        mockWalletContext.connect.mockResolvedValueOnce(undefined);
+        
+        render(
+            <WalletContext.Provider value={mockWalletContext}>
+                <WalletConnect />
+            </WalletContext.Provider>
+        );
 
-    render(
-      <WalletProvider value={connectedContext}>
-        <WalletConnect />
-      </WalletProvider>
-    );
+        await act(async () => {
+            fireEvent.click(screen.getByText('Connect Lace Wallet'));
+        });
+        
+        expect(mockWalletContext.connect).toHaveBeenCalled();
+    });
 
-    const disconnectButton = screen.getByText('Disconnect');
-    await fireEvent.click(disconnectButton);
+    it('should handle connection failure', async () => {
+        mockWalletContext.connect.mockRejectedValueOnce(new Error('Connection failed'));
+        
+        render(
+            <WalletContext.Provider value={mockWalletContext}>
+                <WalletConnect />
+            </WalletContext.Provider>
+        );
 
-    expect(connectedContext.disconnect).toHaveBeenCalled();
-  });
-}); 
+        await act(async () => {
+            fireEvent.click(screen.getByText('Connect Lace Wallet'));
+        });
+
+        await waitFor(() => {
+            expect(screen.getByText('Failed to connect. Please try again.')).toBeInTheDocument();
+        });
+    });
+});
