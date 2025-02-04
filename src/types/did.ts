@@ -2,8 +2,9 @@ export interface VerificationMethod {
     id: string;
     type: string;
     controller: string;
-    publicKeyMultibase?: string;
-    blockchainAccountId?: string;
+    publicKey: CryptoKey;
+    privateKey?: CryptoKey;
+    algorithm: CryptoAlgorithm;
 }
 
 export interface DIDDocument {
@@ -29,4 +30,11 @@ export interface ServiceEndpoint {
     id: string;
     type: string;
     serviceEndpoint: string;
+}
+
+export interface CryptoAlgorithm {
+    name: 'ECDSA' | 'RSASSA-PKCS1-v1_5';
+    hash: {
+        name: 'SHA-256' | 'SHA-384' | 'SHA-512';
+    };
 } 

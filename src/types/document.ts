@@ -29,4 +29,16 @@ export enum DocumentStatus {
     PENDING = 'PENDING',
     SIGNED = 'SIGNED',
     REVOKED = 'REVOKED'
+}
+
+export interface SignedDocument {
+    content: string;
+    signature: string;
+    signerDID: string;
+    keyId?: string;
+}
+
+export interface DocumentSigningOptions {
+    algorithm?: CryptoAlgorithm;
+    keyId?: string;
 } 

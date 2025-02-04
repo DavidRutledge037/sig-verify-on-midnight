@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useWallet } from '../contexts/WalletContext';
 import { LoadingSpinner } from './LoadingSpinner';
 
@@ -6,19 +6,41 @@ export const WalletConnect: React.FC = () => {
     const { connect, disconnect, address, isConnected } = useWallet();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isLaceAvailable, setIsLaceAvailable] = useState<boolean>(false);
+
+    useEffect(() => {
+        // Check for Lace wallet on component mount
+        const checkLaceWallet = () => {
+            const hasLace = !!window.cardano?.lace;
+            setIsLaceAvailable(hasLace);
+            console.log('Lace wallet available:', hasLace);
+        };
+
+        checkLaceWallet();
+        // Check again if window.cardano changes
+        window.addEventListener('cardano', checkLaceWallet);
+        return () => window.removeEventListener('cardano', checkLaceWallet);
+    }, []);
 
     const handleConnect = async () => {
         try {
-            console.log('WalletConnect: Starting connection process...');
             setIsLoading(true);
             setError(null);
-            
+
+            if (!isLaceAvailable) {
+                throw new Error('Lace wallet not installed');
+            }
+
             await connect();
-            console.log('WalletConnect: Connection successful');
-            
         } catch (err) {
-            console.error('WalletConnect: Connection failed:', err);
-            setError('Failed to connect wallet. Please try again.');
+            console.error('Connection failed:', err);
+            if (err instanceof Error) {
+                if (err.message === 'Lace wallet not installed') {
+                    setError('Please install Lace wallet to continue');
+                } else {
+                    setError('Failed to connect. Please try again.');
+                }
+            }
         } finally {
             setIsLoading(false);
         }
@@ -29,14 +51,24 @@ export const WalletConnect: React.FC = () => {
             {error && (
                 <div className="error-message">
                     {error}
-                    <button onClick={() => setError(null)}>✕</button>
+                    {error.includes('install') && (
+                        <a 
+                            href="https://www.lace.io"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="install-link"
+                        >
+                            Install Lace
+                        </a>
+                    )}
+                    <button onClick={() => setError(null)} className="error-dismiss">✕</button>
                 </div>
             )}
             
             {!isConnected ? (
                 <button 
                     onClick={handleConnect}
-                    disabled={isLoading}
+                    disabled={isLoading || !isLaceAvailable}
                     className="connect-button"
                 >
                     {isLoading ? (
@@ -45,7 +77,7 @@ export const WalletConnect: React.FC = () => {
                             <span>Connecting...</span>
                         </>
                     ) : (
-                        'Connect Mock Wallet'
+                        'Connect Lace Wallet'
                     )}
                 </button>
             ) : (
@@ -56,6 +88,21 @@ export const WalletConnect: React.FC = () => {
                     <button onClick={disconnect} className="disconnect-button">
                         Disconnect
                     </button>
+                </div>
+            )}
+
+            {!isLaceAvailable && !error && (
+                <div className="wallet-warning">
+                    <p>
+                        Lace wallet not detected. 
+                        <a 
+                            href="https://www.lace.io"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Install Lace
+                        </a>
+                    </p>
                 </div>
             )}
         </div>

@@ -3,9 +3,11 @@ import { WalletConnect } from './WalletConnect';
 import { Dashboard } from './Dashboard';
 import { DocumentSigning } from './DocumentSigning';
 import { TransactionHistory } from './TransactionHistory';
+import { DIDManagement } from './DIDManagement';
+import { KYCVerification } from './KYCVerification';
 import { useWallet } from '../contexts/WalletContext';
 
-type Page = 'dashboard' | 'sign' | 'history';
+type Page = 'dashboard' | 'sign' | 'history' | 'did' | 'kyc';
 
 export const AppLayout: React.FC = () => {
   const { isConnected } = useWallet();
@@ -19,6 +21,10 @@ export const AppLayout: React.FC = () => {
         return <DocumentSigning />;
       case 'history':
         return <TransactionHistory />;
+      case 'did':
+        return <DIDManagement />;
+      case 'kyc':
+        return <KYCVerification />;
       default:
         return <Dashboard />;
     }
@@ -40,6 +46,18 @@ export const AppLayout: React.FC = () => {
                 className={`nav-button ${currentPage === 'dashboard' ? 'active' : ''}`}
               >
                 Dashboard
+              </button>
+              <button 
+                onClick={() => setCurrentPage('did')}
+                className={`nav-button ${currentPage === 'did' ? 'active' : ''}`}
+              >
+                DID Management
+              </button>
+              <button 
+                onClick={() => setCurrentPage('kyc')}
+                className={`nav-button ${currentPage === 'kyc' ? 'active' : ''}`}
+              >
+                KYC Verification
               </button>
               <button 
                 onClick={() => setCurrentPage('sign')}

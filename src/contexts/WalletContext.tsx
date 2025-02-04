@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
+import { LaceWallet } from '../services/wallet/laceWallet';
 import { MockWallet } from '../services/wallet/mockWallet';
 import { WalletProvider as IWalletProvider } from '../types/wallet';
 
@@ -11,8 +12,10 @@ interface WalletContextType {
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
-// Create a single instance of MockWallet
-const mockWallet = new MockWallet();
+// Use Lace wallet in production, MockWallet in development
+const walletInstance: IWalletProvider = import.meta.env.PROD 
+    ? new LaceWallet()
+    : new MockWallet();
 
 export const WalletContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [isConnected, setIsConnected] = useState(false);
@@ -21,9 +24,9 @@ export const WalletContextProvider: React.FC<{ children: React.ReactNode }> = ({
     const connect = async () => {
         try {
             console.log('WalletContext: Attempting to connect...');
-            const connected = await mockWallet.connect();
+            const connected = await walletInstance.connect();
             if (connected) {
-                const addr = await mockWallet.getAddress();
+                const addr = await walletInstance.getAddress();
                 console.log('WalletContext: Got address:', addr);
                 setAddress(addr);
                 setIsConnected(true);
@@ -36,7 +39,7 @@ export const WalletContextProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const disconnect = () => {
         console.log('WalletContext: Disconnecting...');
-        mockWallet.disconnect();
+        walletInstance.disconnect();
         setIsConnected(false);
         setAddress(null);
     };
