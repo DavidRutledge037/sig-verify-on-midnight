@@ -1,25 +1,43 @@
-import { CryptoAlgorithm } from '../types/DID';
 import { 
     CryptoServiceError, 
-    UnsupportedAlgorithmError,
     SigningError,
     VerificationError 
 } from '../errors/CryptoServiceErrors';
+import { MidnightSignatureParams } from '../types/DID';
+import { secp256k1 } from '@noble/curves/secp256k1';
+import { sha256 } from '@noble/hashes/sha256';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 
 export class CryptoService {
     async sign(
         content: string,
-        privateKey: CryptoKey,
-        algorithm: CryptoAlgorithm
-    ): Promise<string> {
+        privateKeyHex: string,
+    ): Promise<{ signature: string; params: MidnightSignatureParams }> {
         try {
-            const contentBuffer = new TextEncoder().encode(content);
-            const signature = await window.crypto.subtle.sign(
-                algorithm,
-                privateKey,
-                contentBuffer
-            );
-            return Buffer.from(signature).toString('base64');
+            if (!this.validatePrivateKey(privateKeyHex)) {
+                throw new SigningError(new Error('Invalid private key'));
+            }
+
+            const cleanPrivateKey = privateKeyHex.replace('0x', '');
+            const privateKeyBytes = hexToBytes(cleanPrivateKey);
+            
+            const messageBytes = new TextEncoder().encode(content);
+            const messageHash = sha256(messageBytes);
+            
+            // Sign using the raw message hash
+            const signature = secp256k1.sign(messageHash, privateKeyBytes);
+            
+            const params: MidnightSignatureParams = {
+                type: 'MidnightSignature2024',
+                created: new Date().toISOString(),
+                verificationMethod: '', // Will be filled by DocumentSigning service
+                proofPurpose: 'assertionMethod'
+            };
+
+            return {
+                signature: signature.toCompactHex(),
+                params
+            };
         } catch (error) {
             throw new SigningError(error as Error);
         }
@@ -27,54 +45,88 @@ export class CryptoService {
 
     async verify(
         content: string,
-        signature: string,
-        publicKey: CryptoKey,
-        algorithm: CryptoAlgorithm
+        signatureHex: string,
+        publicKeyHex: string,
+        params: MidnightSignatureParams
     ): Promise<boolean> {
         try {
-            const contentBuffer = new TextEncoder().encode(content);
-            const signatureBuffer = Buffer.from(signature, 'base64');
+            if (!this.validatePublicKey(publicKeyHex)) {
+                throw new VerificationError(new Error('Invalid public key'));
+            }
 
-            return await window.crypto.subtle.verify(
-                algorithm,
-                publicKey,
-                signatureBuffer,
-                contentBuffer
-            );
+            const messageBytes = new TextEncoder().encode(content);
+            const messageHash = sha256(messageBytes);
+            
+            try {
+                const signature = secp256k1.Signature.fromCompact(signatureHex);
+                const publicKeyBytes = hexToBytes(publicKeyHex.replace('0x', ''));
+                
+                return secp256k1.verify(signature, messageHash, publicKeyBytes);
+            } catch (error) {
+                throw new VerificationError(new Error('Invalid signature'));
+            }
         } catch (error) {
+            if (error instanceof VerificationError) {
+                throw error;
+            }
             throw new VerificationError(error as Error);
         }
     }
 
-    async generateKeyPair(algorithm: CryptoAlgorithm): Promise<CryptoKeyPair> {
+    async generateKeyPair(): Promise<{ publicKey: string; privateKey: string }> {
         try {
-            if (algorithm.name === 'ECDSA') {
-                return await window.crypto.subtle.generateKey(
-                    {
-                        name: 'ECDSA',
-                        namedCurve: 'P-256'
-                    },
-                    true,
-                    ['sign', 'verify']
-                );
-            } else if (algorithm.name === 'RSASSA-PKCS1-v1_5') {
-                return await window.crypto.subtle.generateKey(
-                    {
-                        name: 'RSASSA-PKCS1-v1_5',
-                        modulusLength: 2048,
-                        publicExponent: new Uint8Array([1, 0, 1]),
-                        hash: algorithm.hash
-                    },
-                    true,
-                    ['sign', 'verify']
-                );
-            }
-            throw new UnsupportedAlgorithmError(algorithm.name);
+            const privateKeyBytes = secp256k1.utils.randomPrivateKey();
+            const privateKeyHex = bytesToHex(privateKeyBytes);
+            
+            // Generate public key and ensure it starts with '04'
+            const publicKeyBytes = secp256k1.getPublicKey(privateKeyBytes, false);
+            const publicKeyHex = '04' + bytesToHex(publicKeyBytes.slice(1));
+            
+            return {
+                publicKey: publicKeyHex,
+                privateKey: privateKeyHex
+            };
         } catch (error) {
-            if (error instanceof CryptoServiceError) {
-                throw error;
-            }
             throw new CryptoServiceError(`Failed to generate key pair: ${(error as Error).message}`);
         }
+    }
+
+    validatePrivateKey(privateKeyHex: string): boolean {
+        try {
+            const cleanKey = privateKeyHex.replace('0x', '');
+            if (!/^[0-9a-fA-F]{64}$/.test(cleanKey)) {
+                return false;
+            }
+            const keyBytes = hexToBytes(cleanKey);
+            return secp256k1.utils.isValidPrivateKey(keyBytes);
+        } catch {
+            return false;
+        }
+    }
+
+    validatePublicKey(publicKeyHex: string): boolean {
+        try {
+            const cleanKey = publicKeyHex.replace('0x', '');
+            
+            // Check if it's a valid uncompressed public key format
+            if (!cleanKey.startsWith('04') || cleanKey.length !== 130) {
+                return false;
+            }
+
+            // Convert to point to validate the key
+            const point = secp256k1.ProjectivePoint.fromHex(cleanKey);
+            return point.assertValidity() === undefined;
+        } catch {
+            return false;
+        }
+    }
+
+    // Helper method to normalize public key format
+    private normalizePublicKey(publicKeyHex: string): string {
+        const cleanKey = publicKeyHex.replace('0x', '');
+        if (cleanKey.length === 130 && cleanKey.startsWith('04')) {
+            return cleanKey;
+        }
+        throw new Error('Invalid public key format');
     }
 } 
