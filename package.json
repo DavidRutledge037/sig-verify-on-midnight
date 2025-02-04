@@ -15,7 +15,7 @@
     "test:all": "vitest run --coverage",
     "test:watch": "vitest watch",
     "test:ui": "vitest --ui",
-    "test:coverage": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --config jest.config.js --coverage",
+    "test:coverage": "vitest run --coverage",
     "lint": "eslint src/**/*.ts",
     "start": "react-scripts start",
     "eject": "react-scripts eject"
