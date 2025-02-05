@@ -5,3 +5,5 @@ import '@testing-library/jest-dom';
 afterEach(() => {
   cleanup();
 });
+
+global.expect = expect;

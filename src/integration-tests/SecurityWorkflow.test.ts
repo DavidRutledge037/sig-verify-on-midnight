@@ -1,15 +1,20 @@
 import { describe, it, expect, beforeEach } from 'vitest'
+import { SecurityWorkflow } from '../workflows/SecurityWorkflow'
 
 describe('Security Workflow Integration', () => {
+  let workflow: SecurityWorkflow
+
   beforeEach(() => {
-    // Setup code here
+    workflow = new SecurityWorkflow()
   })
 
   it('should handle security checks', async () => {
-    // Test implementation
+    const result = await workflow.runSecurityCheck()
+    expect(result).toBeDefined()
   })
 
   it('should validate security tokens', async () => {
-    // Test implementation
+    const result = await workflow.validateToken('test-token')
+    expect(result).toBeDefined()
   })
 })
