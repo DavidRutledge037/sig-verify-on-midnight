@@ -21,5 +21,8 @@ jobs:
     - name: Install dependencies
       run: npm install
       
-    - name: Run tests
-      run: npm run test:all -- --reporter verbose
+    - name: List test files
+      run: find src -name "*.test.ts" -o -name "*.test.tsx"
+      
+    - name: Run tests with debug
+      run: DEBUG=vite:* npm run test:all
