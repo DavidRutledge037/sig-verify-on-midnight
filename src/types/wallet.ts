@@ -38,6 +38,16 @@ export interface WalletProvider {
   disconnect(): Promise<void>;
 }
 
+interface LaceWallet {
+  connect: () => Promise<boolean>;
+  getAddress: () => Promise<string | null>;
+  signMessage: (message: string) => Promise<string>;
+  isConnected: () => Promise<boolean>;
+  disconnect: () => Promise<void>;
+}
+
+export type { LaceWallet };
+
 declare global {
   interface Window {
     cardano?: {

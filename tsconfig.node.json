@@ -1,16 +1,10 @@
 {
-  "extends": "./tsconfig.json",
   "compilerOptions": {
+    "composite": true,
+    "skipLibCheck": true,
     "module": "ESNext",
-    "moduleResolution": "NodeNext",
-    "target": "ESNext",
-    "sourceMap": true,
-    "outDir": "dist"
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true
   },
-  "ts-node": {
-    "esm": true,
-    "experimentalSpecifierResolution": "node"
-  },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules"]
-} 
+  "include": ["vite.config.ts"]
+}
