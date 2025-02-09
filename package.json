@@ -1,0 +1,22 @@
+{
+  "name": "sig-verify-on-midnight-1.1",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "vitest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/node": "^20.11.17",
+    "@types/pg": "^8.11.0",
+    "pg": "^8.11.3",
+    "typescript": "^5.3.3"
+  },
+  "devDependencies": {
+    "vitest": "^1.2.2"
+  }
+}
