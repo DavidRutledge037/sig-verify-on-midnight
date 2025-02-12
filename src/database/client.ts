@@ -1,28 +1,43 @@
-import { Pool, PoolClient } from 'pg';
-import { DatabaseConfig } from '../config/database';
+import { MongoClient, Db, Collection, Document } from 'mongodb';
 
 export class DatabaseClient {
-    private pool: Pool;
+    private client: MongoClient;
+    private db: Db | null = null;
+    private readonly dbName: string;
 
-    constructor(config: DatabaseConfig) {
-        this.pool = new Pool(config);
+    constructor(uri: string, dbName: string = 'default') {
+        this.client = new MongoClient(uri);
+        this.dbName = dbName;
     }
 
-    async query<T = any>(sql: string, params?: any[]): Promise<T[]> {
-        const client = await this.pool.connect();
+    async connect(): Promise<void> {
         try {
-            const result = await client.query(sql, params);
-            return result.rows;
-        } finally {
-            client.release();
+            await this.client.connect();
+            this.db = this.client.db(this.dbName);
+            console.log('Connected to database successfully');
+        } catch (error) {
+            console.error('Database connection failed:', error);
+            throw error;
         }
     }
 
-    async getClient(): Promise<PoolClient> {
-        return await this.pool.connect();
+    getDb(): Db {
+        if (!this.db) {
+            throw new Error('Database not connected');
+        }
+        return this.db;
     }
 
-    async close(): Promise<void> {
-        await this.pool.end();
+    getCollection<T extends Document>(name: string): Collection<T> {
+        return this.getDb().collection<T>(name);
     }
-} 
+
+    async disconnect(): Promise<void> {
+        if (this.client) {
+            await this.client.close();
+            this.db = null;
+        }
+    }
+}
+
+export default DatabaseClient; 

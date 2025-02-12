@@ -1,55 +1,71 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { DatabaseClient } from '../src/database/client';
-import { defaultConfig } from '../src/config/database';
-import { UserRepository } from '../src/database/repositories/userRepository';
-import { DocumentRepository } from '../src/database/repositories/documentRepository';
-import { SignatureRepository } from '../src/database/repositories/signatureRepository';
+import { jest } from '@jest/globals';
+import { DatabaseService } from '../src/services/database';
+import { Collection, Db, MongoClient } from 'mongodb';
 
-describe('Database Integration Tests', () => {
-    let client: DatabaseClient;
-    let userRepo: UserRepository;
-    let documentRepo: DocumentRepository;
-    let signatureRepo: SignatureRepository;
+describe('Database Service Tests', () => {
+    let dbService: DatabaseService;
+    let mockCollection: jest.Mocked<Collection>;
+    let mockDb: Partial<Db>;
+    let mockClient: Partial<MongoClient>;
 
-    beforeAll(() => {
-        client = new DatabaseClient(defaultConfig);
-        userRepo = new UserRepository(client);
-        documentRepo = new DocumentRepository(client);
-        signatureRepo = new SignatureRepository(client);
+    beforeEach(() => {
+        // Setup collection mock with proper types
+        mockCollection = {
+            findOne: jest.fn(),
+            insertOne: jest.fn(),
+            updateOne: jest.fn(),
+            deleteOne: jest.fn(),
+            createIndex: jest.fn()
+        } as unknown as jest.Mocked<Collection>;
+
+        // Setup database mock with proper types
+        mockDb = {
+            collection: jest.fn().mockReturnValue(mockCollection)
+        };
+
+        // Setup MongoDB client mock with proper types
+        mockClient = {
+            db: jest.fn().mockReturnValue(mockDb),
+            connect: jest.fn().mockResolvedValue(undefined),
+            close: jest.fn().mockResolvedValue(undefined)
+        };
+
+        dbService = new DatabaseService('mongodb://localhost:27017', 'test-db');
+        // @ts-ignore - for testing purposes
+        dbService['client'] = mockClient;
+        // @ts-ignore - for testing purposes
+        dbService['db'] = mockDb;
     });
 
-    afterAll(async () => {
-        await client.close();
+    it('should connect to database', async () => {
+        await dbService.connect();
+        expect(mockClient.connect).toHaveBeenCalled();
     });
 
-    it('should connect to the database', async () => {
-        const result = await client.query('SELECT NOW()');
-        expect(result).toBeDefined();
+    it('should disconnect from database', async () => {
+        await dbService.disconnect();
+        expect(mockClient.close).toHaveBeenCalled();
     });
 
-    it('should create and find a user', async () => {
-        const user = await userRepo.create({
-            did: 'did:example:123',
-            publicKey: 'test-public-key'
-        });
-        expect(user.id).toBeDefined();
-        expect(user.did).toBe('did:example:123');
-
-        const found = await userRepo.findByDid('did:example:123');
-        expect(found).toBeDefined();
-        expect(found?.publicKey).toBe('test-public-key');
+    it('should get collection', async () => {
+        const collection = await dbService.getCollection('test');
+        expect(mockDb.collection).toHaveBeenCalledWith('test');
+        expect(collection).toBe(mockCollection);
     });
 
-    it('should create and find a document', async () => {
-        const doc = await documentRepo.create({
-            hash: 'test-hash',
-            content: 'test-content'
-        });
-        expect(doc.id).toBeDefined();
-        expect(doc.hash).toBe('test-hash');
+    it('should handle connection errors', async () => {
+        const error = new Error('Connection failed');
+        mockClient.connect = jest.fn().mockRejectedValue(error);
+        await expect(dbService.connect()).rejects.toThrow('Connection failed');
+    });
 
-        const found = await documentRepo.findByHash('test-hash');
-        expect(found).toBeDefined();
-        expect(found?.content).toBe('test-content');
+    it('should handle disconnection errors', async () => {
+        const error = new Error('Disconnection failed');
+        mockClient.close = jest.fn().mockRejectedValue(error);
+        await expect(dbService.disconnect()).rejects.toThrow('Disconnection failed');
+    });
+
+    afterEach(() => {
+        jest.clearAllMocks();
     });
 });
