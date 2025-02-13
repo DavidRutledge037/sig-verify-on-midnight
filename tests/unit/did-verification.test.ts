@@ -13,14 +13,14 @@ describe('DID Verification', () => {
 
   describe('DID Creation and Validation', () => {
     it('should create valid DID', async () => {
-      const didDoc = await didService.generateDID();
+      const didDoc = await didService.createDID();
       assert.exists(didDoc);
       assert.isTrue(didDoc.id.startsWith('did:midnight:'));
     });
 
     it('should verify created DID', async () => {
-      const didDoc = await didService.generateDID();
-      const isValid = await didService.validateDID(didDoc);
+      const didDoc = await didService.createDID();
+      const isValid = await didService.verifyDID(didDoc);
       assert.isTrue(isValid);
     });
   });
@@ -28,7 +28,7 @@ describe('DID Verification', () => {
   describe('DID Format Validation', () => {
     it('should validate correct DID format', () => {
       const validDID = 'did:midnight:1234567890abcdef';
-      assert.isTrue(didService.validateDIDFormat(validDID));
+      assert.isTrue(didService.isValidDIDFormat(validDID));
     });
 
     it('should reject invalid DID format', () => {
@@ -40,7 +40,7 @@ describe('DID Verification', () => {
       ];
       
       invalidDIDs.forEach(did => {
-        assert.isFalse(didService.validateDIDFormat(did));
+        assert.isFalse(didService.isValidDIDFormat(did));
       });
     });
   });
