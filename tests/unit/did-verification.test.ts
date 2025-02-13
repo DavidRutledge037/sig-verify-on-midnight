@@ -13,14 +13,14 @@ describe('DID Verification', () => {
 
   describe('DID Creation and Validation', () => {
     it('should create valid DID', async () => {
-      const didDoc = await didService.createDID();
+      const didDoc = await didService.generateDID();
       assert.exists(didDoc);
       assert.isTrue(didDoc.id.startsWith('did:midnight:'));
     });
 
     it('should verify created DID', async () => {
-      const didDoc = await didService.createDID();
-      const isValid = await didService.verifyDID(didDoc);
+      const didDoc = await didService.generateDID();
+      const isValid = await didService.validateDID(didDoc);
       assert.isTrue(isValid);
     });
   });
@@ -28,7 +28,7 @@ describe('DID Verification', () => {
   describe('DID Format Validation', () => {
     it('should validate correct DID format', () => {
       const validDID = 'did:midnight:1234567890abcdef';
-      assert.isTrue(didService.isValidDIDFormat(validDID));
+      assert.isTrue(didService.validateDIDFormat(validDID));
     });
 
     it('should reject invalid DID format', () => {
@@ -40,7 +40,7 @@ describe('DID Verification', () => {
       ];
       
       invalidDIDs.forEach(did => {
-        assert.isFalse(didService.isValidDIDFormat(did));
+        assert.isFalse(didService.validateDIDFormat(did));
       });
     });
   });
@@ -48,7 +48,7 @@ describe('DID Verification', () => {
   describe('DID Resolution', () => {
     it('should resolve valid DID', async () => {
       const validDID = 'did:midnight:1234567890abcdef';
-      const result = await didService.resolveDID(validDID);
+      const result = await didService.resolve(validDID);
       assert.exists(result);
       assert.property(result, 'didDocument');
       assert.property(result, 'didResolutionMetadata');
@@ -57,7 +57,7 @@ describe('DID Verification', () => {
     it('should reject invalid DID format during resolution', async () => {
       const invalidDID = 'not:a:valid:did';
       try {
-        await didService.resolveDID(invalidDID);
+        await didService.resolve(invalidDID);
         assert.fail('Should have thrown an error');
       } catch (error: any) {
         assert.equal(error.message, 'Invalid DID format');
