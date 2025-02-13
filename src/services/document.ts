@@ -65,4 +65,24 @@ export class DocumentService {
     const record = this.documentStore.get(hash.toString());
     return record ? [record.did] : [];
   }
+
+  async verifySignature(document: Uint8Array, signature: Uint8Array, did: string): Promise<boolean> {
+    if (!this.#didService.validateDIDFormat(did)) {
+      throw new Error('Invalid DID format');
+    }
+    if (document.length === 0) {
+      throw new Error('Empty document');
+    }
+    return this.#wallet.verify(document, signature);
+  }
+
+  async signDocument(document: Uint8Array, did: string): Promise<Uint8Array> {
+    if (document.length === 0) {
+      throw new Error('Empty document');
+    }
+    if (!this.#didService.validateDIDFormat(did)) {
+      throw new Error('Invalid DID format');
+    }
+    return this.#didService.signWithDID(did, document);
+  }
 } 
