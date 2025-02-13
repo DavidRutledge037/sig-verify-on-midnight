@@ -12,21 +12,13 @@ describe('DID Verification', () => {
   });
 
   describe('DID Creation and Validation', () => {
-    it('should create valid DID', async () => {
-      const didDoc = await didService.generateDID();
-      assert.exists(didDoc);
-      assert.isTrue(didDoc.id.startsWith('did:midnight:'));
+    it('should generate valid DID', async () => {
+      const did = await didService.generateDID();
+      assert.exists(did);
+      assert.isTrue(did.startsWith('did:midnight:'));
     });
 
-    it('should verify created DID', async () => {
-      const didDoc = await didService.generateDID();
-      const isValid = await didService.validateDID(didDoc);
-      assert.isTrue(isValid);
-    });
-  });
-
-  describe('DID Format Validation', () => {
-    it('should validate correct DID format', () => {
+    it('should validate DID format', () => {
       const validDID = 'did:midnight:1234567890abcdef';
       assert.isTrue(didService.validateDIDFormat(validDID));
     });
@@ -45,22 +37,33 @@ describe('DID Verification', () => {
     });
   });
 
-  describe('DID Resolution', () => {
-    it('should resolve valid DID', async () => {
-      const validDID = 'did:midnight:1234567890abcdef';
-      const result = await didService.resolve(validDID);
-      assert.exists(result);
-      assert.property(result, 'didDocument');
-      assert.property(result, 'didResolutionMetadata');
+  describe('Document Signing', () => {
+    it('should sign document with valid DID', async () => {
+      const document = new Uint8Array([1, 2, 3]);
+      const did = await didService.generateDID();
+      const signature = await didService.signWithDID(did, document);
+      assert.exists(signature);
     });
 
-    it('should reject invalid DID format during resolution', async () => {
-      const invalidDID = 'not:a:valid:did';
+    it('should reject empty document', async () => {
+      const emptyDoc = new Uint8Array(0);
+      const did = await didService.generateDID();
       try {
-        await didService.resolve(invalidDID);
+        await didService.signWithDID(did, emptyDoc);
         assert.fail('Should have thrown an error');
       } catch (error: any) {
-        assert.equal(error.message, 'Invalid DID format');
+        assert.include(error.message, 'Empty document');
+      }
+    });
+
+    it('should reject invalid DID format', async () => {
+      const document = new Uint8Array([1, 2, 3]);
+      const invalidDID = 'not:a:valid:did';
+      try {
+        await didService.signWithDID(invalidDID, document);
+        assert.fail('Should have thrown an error');
+      } catch (error: any) {
+        assert.include(error.message, 'Invalid DID format');
       }
     });
   });
