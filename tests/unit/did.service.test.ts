@@ -1,85 +1,102 @@
 import { jest } from '@jest/globals';
-import { DIDService } from '../../src/services/did.service';
-import { WalletService } from '../../src/services/wallet.service';
-import { DIDDocument } from '../../src/types/did.types';
-import { KeyPair } from '../../src/types/key.types';
+import type { DIDDocument } from '../../src/types/did.types.js';
+import type { IDIDService, IWalletService } from '../../src/types/service.types.js';
 
-describe('DID Service Tests', () => {
-    let didService: DIDService;
-    let mockWalletService: jest.Mocked<WalletService>;
-
-    const mockKeyPair: KeyPair = {
-        publicKey: new Uint8Array([1, 2, 3]),
-        privateKey: new Uint8Array([4, 5, 6])
-    };
+describe('DIDService', () => {
+    let didService: IDIDService;
+    let walletService: jest.Mocked<IWalletService>;
 
     beforeEach(() => {
-        mockWalletService = {
-            initialize: jest.fn().mockResolvedValue(undefined),
-            createWallet: jest.fn().mockResolvedValue(undefined),
-            getClient: jest.fn().mockResolvedValue({
-                signAndBroadcast: jest.fn().mockResolvedValue({ transactionHash: 'hash123' })
-            }),
-            getAddress: jest.fn().mockReturnValue('midnight1test123'),
-            sign: jest.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
-            verify: jest.fn().mockResolvedValue(true),
-            getBalance: jest.fn().mockResolvedValue('1000'),
-            displayBalance: jest.fn().mockReturnValue('1.0 NIGHT'),
-            signMessage: jest.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
-            isInitialized: jest.fn().mockReturnValue(true),
-            getPublicKey: jest.fn().mockReturnValue(new Uint8Array([1, 2, 3])),
-            currentKeyPair: mockKeyPair,
-            wallet: undefined,
-            client: undefined,
-            keyManager: {
-                generateKeyPair: jest.fn().mockResolvedValue(mockKeyPair),
-                sign: jest.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
-                verify: jest.fn().mockResolvedValue(true),
-                deriveAddress: jest.fn().mockReturnValue('midnight1test123'),
-                getPublicKeyFromPrivate: jest.fn().mockReturnValue(new Uint8Array([1, 2, 3])),
-                publicKeyToHex: jest.fn().mockReturnValue('123456'),
-                publicKeyFromHex: jest.fn().mockReturnValue(new Uint8Array([1, 2, 3]))
-            }
-        } as unknown as jest.Mocked<WalletService>;
-
-        didService = new DIDService(mockWalletService);
+        // Get services from container
+        const { container, mocks } = global.testContext;
+        didService = container.resolve('didService');
+        walletService = mocks.walletService;
     });
 
-    it('should create a DID', async () => {
-        const did = await didService.createDID();
-        expect(did).toBeDefined();
-        expect(did.id).toMatch(/^did:midnight:/);
-        expect(did.controller).toBeDefined();
-        expect(did.verificationMethod).toHaveLength(1);
-        expect(did.status).toBe('active');
+    describe('createDID', () => {
+        it('should create a new DID document', async () => {
+            // Arrange
+            const expectedDID: DIDDocument = {
+                id: 'did:midnight:test',
+                controller: 'did:midnight:test',
+                verificationMethod: [{
+                    id: 'did:midnight:test#key-1',
+                    type: 'Ed25519VerificationKey2020',
+                    controller: 'did:midnight:test',
+                    publicKeyMultibase: 'z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK'
+                }],
+                authentication: ['did:midnight:test#key-1'],
+                assertionMethod: ['did:midnight:test#key-1'],
+                created: expect.any(String),
+                updated: expect.any(String)
+            };
+
+            // Act
+            const result = await didService.createDID();
+
+            // Assert
+            expect(result).toMatchObject(expectedDID);
+            expect(walletService.sign).toHaveBeenCalled();
+        });
+
+        it('should throw if wallet is not initialized', async () => {
+            // Arrange
+            walletService.getPublicKey.mockImplementation(() => {
+                throw new Error('Wallet not initialized');
+            });
+
+            // Act & Assert
+            await expect(didService.createDID())
+                .rejects
+                .toThrow('Wallet not initialized');
+        });
     });
 
-    it('should verify a valid DID', async () => {
-        const did: DIDDocument = {
-            id: 'did:midnight:test123',
-            controller: 'did:midnight:test123',
-            verificationMethod: [{
-                id: 'did:midnight:test123#key-1',
-                type: 'Ed25519VerificationKey2020',
-                controller: 'did:midnight:test123',
-                publicKeyMultibase: 'test'
-            }],
-            authentication: ['did:midnight:test123#key-1'],
-            assertionMethod: [],
-            keyAgreement: [],
-            capabilityInvocation: [],
-            capabilityDelegation: [],
-            service: [],
-            created: new Date().toISOString(),
-            updated: new Date().toISOString(),
-            status: 'active'
-        };
+    describe('verifyDID', () => {
+        it('should verify a valid DID document', async () => {
+            // Arrange
+            const did = await didService.createDID();
+            walletService.verify.mockResolvedValue(true);
 
-        const isValid = await didService.verifyDID(did);
-        expect(isValid).toBe(true);
+            // Act
+            const result = await didService.verifyDID(did);
+
+            // Assert
+            expect(result).toBe(true);
+            expect(walletService.verify).toHaveBeenCalled();
+        });
+
+        it('should return false for invalid DID document', async () => {
+            // Arrange
+            const did = await didService.createDID();
+            walletService.verify.mockResolvedValue(false);
+
+            // Act
+            const result = await didService.verifyDID(did);
+
+            // Assert
+            expect(result).toBe(false);
+        });
     });
 
-    afterEach(() => {
-        jest.clearAllMocks();
+    describe('resolveDID', () => {
+        it('should resolve an existing DID', async () => {
+            // Arrange
+            const did = await didService.createDID();
+
+            // Act
+            const result = await didService.resolveDID(did.id);
+
+            // Assert
+            expect(result.didDocument.id).toBe(did.id);
+            expect(result.didResolutionMetadata.contentType).toBe('application/did+json');
+        });
+
+        it('should throw for non-existent DID', async () => {
+            // Act & Assert
+            await expect(didService.resolveDID('did:midnight:nonexistent'))
+                .rejects
+                .toThrow('DID not found');
+        });
     });
 });

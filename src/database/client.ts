@@ -1,43 +1,51 @@
-import { MongoClient, Db, Collection, Document } from 'mongodb';
+import { MongoClient, Collection, Db } from 'mongodb';
 
 export class DatabaseClient {
+    private static instance: DatabaseClient;
     private client: MongoClient;
     private db: Db | null = null;
-    private readonly dbName: string;
+    private initialized: boolean = false;
 
-    constructor(uri: string, dbName: string = 'default') {
+    constructor(uri: string) {
         this.client = new MongoClient(uri);
-        this.dbName = dbName;
+    }
+
+    static async getInstance(uri: string): Promise<DatabaseClient> {
+        if (!DatabaseClient.instance) {
+            DatabaseClient.instance = new DatabaseClient(uri);
+            await DatabaseClient.instance.connect();
+        }
+        return DatabaseClient.instance;
     }
 
     async connect(): Promise<void> {
-        try {
+        if (!this.initialized) {
             await this.client.connect();
-            this.db = this.client.db(this.dbName);
-            console.log('Connected to database successfully');
-        } catch (error) {
-            console.error('Database connection failed:', error);
-            throw error;
+            this.db = this.client.db();
+            this.initialized = true;
         }
     }
 
-    getDb(): Db {
-        if (!this.db) {
-            throw new Error('Database not connected');
-        }
-        return this.db;
-    }
-
-    getCollection<T extends Document>(name: string): Collection<T> {
-        return this.getDb().collection<T>(name);
-    }
-
-    async disconnect(): Promise<void> {
-        if (this.client) {
+    async close(): Promise<void> {
+        if (this.initialized) {
             await this.client.close();
+            this.initialized = false;
             this.db = null;
         }
     }
-}
 
-export default DatabaseClient; 
+    getCollection<T>(name: string): Collection<T> {
+        if (!this.db) {
+            throw new Error('Database not initialized. Call connect() first.');
+        }
+        return this.db.collection<T>(name);
+    }
+
+    isInitialized(): boolean {
+        return this.initialized;
+    }
+
+    getClient(): MongoClient {
+        return this.client;
+    }
+} 

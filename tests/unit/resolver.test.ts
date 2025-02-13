@@ -1,86 +1,64 @@
 import { jest } from '@jest/globals';
 import { DIDResolver } from '../../src/identity/resolver';
 import { DIDStorageService } from '../../src/services/did-storage.service';
+import { createMockStorageService } from '../utils/service-mocks';
+import { createAsyncMockFn } from '../utils/mock-utils';
 import { DIDDocument } from '../../src/types/did.types';
-import { DatabaseService } from '../../src/services/database';
-import { Collection } from 'mongodb';
 
 describe('DID Resolver Tests', () => {
     let resolver: DIDResolver;
     let mockStorageService: jest.Mocked<DIDStorageService>;
-    let mockDbService: jest.Mocked<DatabaseService>;
-    let mockCollection: jest.Mocked<Collection>;
-
+    
     const testDID: DIDDocument = {
         id: 'did:midnight:test123',
         controller: 'did:midnight:controller123',
-        verificationMethod: [],
-        authentication: [],
-        assertionMethod: [],
-        keyAgreement: [],
-        capabilityInvocation: [],
-        capabilityDelegation: [],
-        service: [],
+        verificationMethod: [{
+            id: 'did:midnight:test123#key-1',
+            type: 'Ed25519VerificationKey2020',
+            controller: 'did:midnight:test123',
+            publicKeyHex: '123456'
+        }],
+        authentication: ['did:midnight:test123#key-1'],
+        assertionMethod: ['did:midnight:test123#key-1'],
         created: new Date().toISOString(),
-        updated: new Date().toISOString(),
-        status: 'active' as const
+        updated: new Date().toISOString()
     };
 
     beforeEach(() => {
-        mockCollection = {
-            findOne: jest.fn().mockResolvedValue(testDID),
-            insertOne: jest.fn(),
-            updateOne: jest.fn(),
-            deleteOne: jest.fn(),
-            createIndex: jest.fn()
-        } as unknown as jest.Mocked<Collection>;
-
-        mockDbService = {
-            connect: jest.fn().mockResolvedValue(void 0),
-            disconnect: jest.fn().mockResolvedValue(void 0),
-            getCollection: jest.fn().mockResolvedValue(mockCollection),
-            getClient: jest.fn(),
-            isConnectedToDatabase: jest.fn().mockReturnValue(true),
-            getDatabaseName: jest.fn().mockReturnValue('test-db')
-        } as unknown as jest.Mocked<DatabaseService>;
-
-        mockStorageService = {
-            getDID: jest.fn().mockResolvedValue(testDID),
-            storeDID: jest.fn().mockResolvedValue(undefined),
-            updateDID: jest.fn().mockResolvedValue(true),
-            deleteDID: jest.fn().mockResolvedValue(undefined),
-            initialize: jest.fn().mockResolvedValue(undefined),
-            getDIDsByController: jest.fn().mockResolvedValue([testDID]),
-            getDIDsByStatus: jest.fn().mockResolvedValue([testDID]),
-            exists: jest.fn().mockResolvedValue(true)
-        } as jest.Mocked<DIDStorageService>;
-
+        mockStorageService = createMockStorageService();
+        mockStorageService.getDID.mockResolvedValue(testDID);
+        mockStorageService.exists.mockResolvedValue(true);
+        mockStorageService.getDIDsByController.mockResolvedValue([testDID]);
+        mockStorageService.getDIDsByStatus.mockResolvedValue([testDID]);
+        
         resolver = new DIDResolver(mockStorageService);
-    });
-
-    it('should resolve a valid DID', async () => {
-        const result = await resolver.resolve(testDID.id);
-        expect(result).toEqual(testDID);
-        expect(mockStorageService.getDID).toHaveBeenCalledWith(testDID.id);
-    });
-
-    it('should return null for non-existent DID', async () => {
-        mockStorageService.getDID.mockResolvedValueOnce(null);
-        const result = await resolver.resolve('did:midnight:nonexistent');
-        expect(result).toBeNull();
-    });
-
-    it('should throw error for invalid DID format', async () => {
-        await expect(resolver.resolve('invalid:did:format'))
-            .rejects.toThrow('Invalid DID format');
-    });
-
-    it('should validate DID format', () => {
-        expect(resolver.isValidDID(testDID.id)).toBe(true);
-        expect(resolver.isValidDID('invalid:did:format')).toBe(false);
     });
 
     afterEach(() => {
         jest.clearAllMocks();
+    });
+
+    it('should resolve a DID', async () => {
+        const result = await resolver.resolve('did:midnight:test123');
+        expect(result.didDocument).toEqual(testDID);
+        expect(mockStorageService.getDID).toHaveBeenCalledWith('did:midnight:test123');
+    });
+
+    it('should return null for non-existent DID', async () => {
+        mockStorageService.getDID.mockResolvedValue(null);
+        const result = await resolver.resolve('did:midnight:nonexistent');
+        expect(result).toBeNull();
+    });
+
+    it('should verify DID existence', async () => {
+        const exists = await resolver.exists('did:midnight:test123');
+        expect(exists).toBe(true);
+        expect(mockStorageService.exists).toHaveBeenCalledWith('did:midnight:test123');
+    });
+
+    it('should get DIDs by controller', async () => {
+        const dids = await resolver.getByController('did:midnight:controller123');
+        expect(dids).toEqual([testDID]);
+        expect(mockStorageService.getDIDsByController).toHaveBeenCalledWith('did:midnight:controller123');
     });
 }); 

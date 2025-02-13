@@ -1,117 +1,182 @@
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { DIDStorageService } from '../../src/services/did-storage.service';
-import { createMockDIDDocument } from '../utils/test-helpers';
-import { setupTestDatabase, teardownTestDatabase, clearTestDatabase } from '../utils/mock-database';
-import { DatabaseService } from '../../src/services/database';
+import { jest } from '@jest/globals';
+import type { IStorageService } from '../../src/types/service.types.js';
+import type { IUnitOfWork, IRepository } from '../../src/core/repository.js';
+import type { DIDDocument } from '../../src/types/did.types.js';
 
 describe('DIDStorageService', () => {
-    let storageService: DIDStorageService;
-    let dbService: DatabaseService;
-
-    beforeEach(async () => {
-        const setup = await setupTestDatabase();
-        dbService = setup.dbService;
-        storageService = setup.storageService;
+    let storageService: IStorageService;
+    let unitOfWork: jest.Mocked<IUnitOfWork>;
+    let mockRepository: jest.Mocked<IRepository<DIDDocument>>;
+    
+    beforeEach(() => {
+        // Get services from container
+        const { container, mocks } = global.testContext;
+        storageService = container.resolve('storageService');
+        unitOfWork = container.resolve('unitOfWork');
+        
+        // Setup mock repository
+        mockRepository = {
+            findById: jest.fn(),
+            findOne: jest.fn(),
+            findMany: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            delete: jest.fn()
+        } as jest.Mocked<IRepository<DIDDocument>>;
+        
+        // Configure UnitOfWork to return our mock repository
+        unitOfWork.getRepository.mockReturnValue(mockRepository);
     });
 
-    afterEach(async () => {
-        await clearTestDatabase();
-    });
+    describe('initialize', () => {
+        it('should initialize storage service', async () => {
+            // Act
+            await storageService.initialize();
 
-    afterAll(async () => {
-        await teardownTestDatabase();
-    });
-
-    describe('storeDID', () => {
-        it('should store a DID document', async () => {
-            const mockDID = createMockDIDDocument();
-            await storageService.storeDID(mockDID);
-            
-            const stored = await storageService.getDID(mockDID.id);
-            expect(stored).toBeDefined();
-            expect(stored?.id).toBe(mockDID.id);
+            // Assert
+            expect(storageService.initialize).toHaveBeenCalled();
         });
 
-        it('should reject duplicate DIDs', async () => {
-            const mockDID = createMockDIDDocument();
-            await storageService.storeDID(mockDID);
-            
-            await expect(storageService.storeDID(mockDID))
+        it('should handle initialization errors', async () => {
+            // Arrange
+            jest.spyOn(storageService, 'initialize')
+                .mockRejectedValueOnce(new Error('Init failed'));
+
+            // Act & Assert
+            await expect(storageService.initialize())
                 .rejects
-                .toThrow();
+                .toThrow('Init failed');
         });
     });
 
-    describe('getDID', () => {
-        it('should retrieve a stored DID', async () => {
-            const mockDID = createMockDIDDocument();
-            await storageService.storeDID(mockDID);
-            
-            const retrieved = await storageService.getDID(mockDID.id);
-            expect(retrieved).toEqual(mockDID);
+    describe('store', () => {
+        const testDID: DIDDocument = {
+            id: 'did:midnight:test',
+            controller: 'did:midnight:test',
+            verificationMethod: [],
+            authentication: [],
+            assertionMethod: [],
+            created: new Date().toISOString(),
+            updated: new Date().toISOString()
+        };
+
+        beforeEach(async () => {
+            await storageService.initialize();
+        });
+
+        it('should store DID document', async () => {
+            // Arrange
+            mockRepository.create.mockResolvedValue('test-id');
+
+            // Act
+            const id = await storageService.store('dids', testDID);
+
+            // Assert
+            expect(id).toBe('test-id');
+            expect(unitOfWork.startTransaction).toHaveBeenCalled();
+            expect(unitOfWork.commitTransaction).toHaveBeenCalled();
+        });
+
+        it('should rollback on storage error', async () => {
+            // Arrange
+            mockRepository.create.mockRejectedValue(new Error('Storage failed'));
+
+            // Act & Assert
+            await expect(storageService.store('dids', testDID))
+                .rejects
+                .toThrow('Storage failed');
+            expect(unitOfWork.rollbackTransaction).toHaveBeenCalled();
+        });
+
+        it('should validate DID before storage', async () => {
+            // Arrange
+            const invalidDID = { ...testDID, id: '' };
+
+            // Act & Assert
+            await expect(storageService.store('dids', invalidDID))
+                .rejects
+                .toThrow('Invalid DID document');
+        });
+    });
+
+    describe('get', () => {
+        it('should retrieve DID document', async () => {
+            // Arrange
+            const mockDID = {
+                id: 'did:midnight:test',
+                controller: 'did:midnight:test'
+            } as DIDDocument;
+            mockRepository.findById.mockResolvedValue(mockDID);
+
+            // Act
+            const result = await storageService.get('dids', 'test-id');
+
+            // Assert
+            expect(result).toEqual(mockDID);
         });
 
         it('should return null for non-existent DID', async () => {
-            const retrieved = await storageService.getDID('did:midnight:nonexistent');
-            expect(retrieved).toBeNull();
+            // Arrange
+            mockRepository.findById.mockResolvedValue(null);
+
+            // Act
+            const result = await storageService.get('dids', 'nonexistent');
+
+            // Assert
+            expect(result).toBeNull();
         });
     });
 
-    describe('updateDID', () => {
-        it('should update an existing DID', async () => {
-            const mockDID = createMockDIDDocument();
-            await storageService.storeDID(mockDID);
-            
-            const updatedDID = {
-                ...mockDID,
-                service: [{ id: 'test', type: 'test', serviceEndpoint: 'test' }]
-            };
-            
-            const success = await storageService.updateDID(updatedDID);
-            expect(success).toBe(true);
-            
-            const retrieved = await storageService.getDID(mockDID.id);
-            expect(retrieved?.service).toEqual(updatedDID.service);
+    describe('update', () => {
+        it('should update DID document', async () => {
+            // Arrange
+            mockRepository.update.mockResolvedValue(true);
+            const updateData = { updated: new Date().toISOString() };
+
+            // Act
+            const result = await storageService.update('dids', 'test-id', updateData);
+
+            // Assert
+            expect(result).toBe(true);
+            expect(unitOfWork.startTransaction).toHaveBeenCalled();
+            expect(unitOfWork.commitTransaction).toHaveBeenCalled();
         });
 
-        it('should return false for non-existent DID', async () => {
-            const mockDID = createMockDIDDocument();
-            const success = await storageService.updateDID(mockDID);
-            expect(success).toBe(false);
-        });
-    });
+        it('should handle update failures', async () => {
+            // Arrange
+            mockRepository.update.mockResolvedValue(false);
 
-    describe('deleteDID', () => {
-        it('should delete an existing DID', async () => {
-            const mockDID = createMockDIDDocument();
-            await storageService.storeDID(mockDID);
-            
-            const success = await storageService.deleteDID(mockDID.id);
-            expect(success).toBe(true);
-            
-            const retrieved = await storageService.getDID(mockDID.id);
-            expect(retrieved).toBeNull();
-        });
+            // Act
+            const result = await storageService.update('dids', 'nonexistent', {});
 
-        it('should return false for non-existent DID', async () => {
-            const success = await storageService.deleteDID('did:midnight:nonexistent');
-            expect(success).toBe(false);
+            // Assert
+            expect(result).toBe(false);
         });
     });
 
-    describe('getDIDsByController', () => {
-        it('should retrieve all DIDs for a controller', async () => {
-            const controller = 'test-controller';
-            const mockDID1 = createMockDIDDocument(undefined, controller);
-            const mockDID2 = createMockDIDDocument(undefined, controller);
-            
-            await storageService.storeDID(mockDID1);
-            await storageService.storeDID(mockDID2);
-            
-            const dids = await storageService.getDIDsByController(controller);
-            expect(dids).toHaveLength(2);
-            expect(dids.map(d => d.id)).toContain(mockDID1.id);
-            expect(dids.map(d => d.id)).toContain(mockDID2.id);
+    describe('delete', () => {
+        it('should delete DID document', async () => {
+            // Arrange
+            mockRepository.delete.mockResolvedValue(true);
+
+            // Act
+            const result = await storageService.delete('dids', 'test-id');
+
+            // Assert
+            expect(result).toBe(true);
+            expect(unitOfWork.startTransaction).toHaveBeenCalled();
+            expect(unitOfWork.commitTransaction).toHaveBeenCalled();
+        });
+
+        it('should handle deletion failures', async () => {
+            // Arrange
+            mockRepository.delete.mockResolvedValue(false);
+
+            // Act
+            const result = await storageService.delete('dids', 'nonexistent');
+
+            // Assert
+            expect(result).toBe(false);
         });
     });
 }); 

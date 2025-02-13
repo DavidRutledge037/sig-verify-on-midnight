@@ -1,4 +1,5 @@
 import { Document } from 'mongodb';
+import { KeyPair } from './key.types.js';
 
 export type DIDStatus = 'active' | 'revoked' | 'suspended';
 
@@ -27,20 +28,18 @@ export interface DIDDocument extends Document {
     service: any[]; // Consider making this more specific based on your needs
     created: string;
     updated: string;
-    status: DIDStatus;
+    status?: 'active' | 'revoked';
 }
 
 export interface DIDResolutionResult {
     didDocument: DIDDocument;
     didResolutionMetadata: {
         contentType: string;
-        error?: string;
     };
     didDocumentMetadata: {
         created: string;
         updated?: string;
-        deactivated?: boolean;
-        versionId?: string;
+        status?: 'active' | 'revoked';
     };
 }
 
@@ -58,7 +57,14 @@ export interface DIDStorageOptions {
     indices?: { [key: string]: number }[];
 }
 
+export interface DIDProof {
+    type: string;
+    created: string;
+    verificationMethod: string;
+    proofValue: string;
+}
+
 export interface DIDVerificationResult {
-    isValid: boolean;
-    error?: string;
+    verified: boolean;
+    reason?: string;
 }

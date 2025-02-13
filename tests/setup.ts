@@ -1,173 +1,106 @@
-import { beforeAll, afterAll, vi } from 'vitest';
-import '@testing-library/jest-dom/vitest';
-import React from 'react';
-import { beforeEach, afterEach } from 'vitest';
 import { jest } from '@jest/globals';
+import { Container } from '../src/core/container.js';
+import { Repository } from '../src/core/repository.js';
+import type { IUnitOfWork } from '../src/core/repository.js';
+import type { Collection } from 'mongodb';
 
-// Make vi available globally for tests
-globalThis.vi = vi;
+// 1. Define the missing types
+interface TestConfig {
+    container: Container;
+}
 
-// Map jest functions to vitest
-jest.fn = vi.fn;
-jest.spyOn = vi.spyOn;
-jest.mock = vi.mock;
-jest.clearAllMocks = vi.clearAllMocks;
+interface MockServices {
+    didService: jest.Mocked<any>;
+    walletService: jest.Mocked<any>;
+    keyManager: jest.Mocked<any>;
+    storageService: jest.Mocked<any>;
+}
 
-// Mock React components properly
-vi.mock('../src/components/StepIndicator', () => ({
-    StepIndicator: ({ currentStep }: { currentStep: number }) => 
-        React.createElement('div', { 'data-testid': 'step-indicator' }, `Step ${currentStep}`)
-}));
+declare global {
+    var testContext: {
+        config: TestConfig;
+        mocks: MockServices;
+        container: Container;
+    } | undefined;
+}
 
-vi.mock('../src/components/DropZone', () => ({
-    DropZone: ({ onDrop }: { onDrop: (files: File[]) => void }) => 
-        React.createElement('div', { 
-            'data-testid': 'dropzone',
-            onDrop: (e: any) => {
-                e.preventDefault();
-                onDrop(Array.from(e.dataTransfer.files));
-            }
-        }, 'Drop files here')
-}));
-
-vi.mock('../src/components/DocumentPreview', () => ({
-    DocumentPreview: ({ files }: { files: File[] }) => 
-        React.createElement('div', { 'data-testid': 'document-preview' }, 
-            `Previewing ${files.length} files`)
-}));
-
-vi.mock('../src/components/UploadProgress', () => ({
-    UploadProgress: ({ files }: { files: File[] }) => 
-        React.createElement('div', { 'data-testid': 'upload-progress' }, 
-            `Uploading ${files.length} files`)
-}));
-
-vi.mock('../src/components/BasicInfo', () => ({
-    BasicInfo: () => 
-        React.createElement('div', { 'data-testid': 'basic-info' }, 'Basic Info Form')
-}));
-
-vi.mock('../src/components/KYCUpload', () => ({
-    KYCUpload: () => 
-        React.createElement('div', { 'data-testid': 'kyc-upload' }, 'KYC Upload Form')
-}));
-
-vi.mock('../src/components/DIDConfirmation', () => ({
-    DIDConfirmation: () => 
-        React.createElement('div', { 'data-testid': 'did-confirmation' }, 'DID Confirmation')
-}));
-
-// Mock crypto module using exact syntax from error message
-vi.mock('crypto', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('crypto')>()
-  const mockHash = {
-    content: '',
-    update(data: any) {
-      this.content = Buffer.from(data).toString();
-      return this;
-    },
-    digest(encoding: string) {
-      return Buffer.from(this.content).toString('hex').substring(0, 32);
-    }
-  };
-
-  return {
-    ...actual,
-    createHash: () => mockHash,
-    randomBytes: (size: number) => Buffer.from('a'.repeat(size)),
-    default: {
-      createHash: () => mockHash,
-      randomBytes: (size: number) => Buffer.from('a'.repeat(size))
-    }
-  }
-});
-
-// Mock File API
-global.File = class MockFile {
-    name: string;
-    type: string;
-    content: string;
-
-    constructor(content: string[], name: string, options: { type: string }) {
-        this.content = content[0];
-        this.name = name;
-        this.type = options.type;
-    }
-
-    async arrayBuffer() {
-        return new TextEncoder().encode(this.content).buffer;
-    }
-};
-
-// Mock MongoDB collections with working implementations
-const mockCollections: { [key: string]: any } = {};
-
-const getMockCollection = (name: string) => {
-    if (!mockCollections[name]) {
-        const documents = new Map();
-        
-        mockCollections[name] = {
-            insertOne: vi.fn(async (doc) => {
-                const id = Math.random().toString(36).substring(7);
-                const fullDoc = { _id: id, ...doc };
-                documents.set(id, fullDoc);
-                return { insertedId: id, value: fullDoc };
-            }),
-            findOne: vi.fn(async (query) => {
-                if (query._id) {
-                    return documents.get(query._id);
-                }
-                for (const doc of documents.values()) {
-                    if (query['did.id'] && doc.did?.id === query['did.id']) return doc;
-                    if (query.hash && doc.hash === query.hash) return doc;
-                    // Add other query matches as needed
-                }
-                return null;
-            }),
-            find: vi.fn().mockReturnValue({
-                toArray: async () => Array.from(documents.values())
-            }),
-            findOneAndUpdate: vi.fn(async (query, update) => {
-                for (const [id, doc] of documents) {
-                    if (query._id === id) {
-                        const updatedDoc = {
-                            ...doc,
-                            ...update.$set,
-                            updatedAt: new Date()
-                        };
-                        documents.set(id, updatedDoc);
-                        return { value: updatedDoc };
-                    }
-                }
-                return { value: null };
-            })
-        };
-    }
-    return mockCollections[name];
-};
-
-// Mock MongoDB client
-vi.mock('mongodb', () => ({
-    MongoClient: vi.fn().mockImplementation(() => ({
-        connect: vi.fn().mockResolvedValue(null),
-        db: vi.fn().mockReturnValue({
-            collection: vi.fn().mockImplementation((name) => getMockCollection(name))
-        }),
-        close: vi.fn().mockResolvedValue(null)
-    }))
-}));
-
-beforeEach(() => {
-    vi.clearAllMocks();
-    Object.keys(mockCollections).forEach(key => {
-        delete mockCollections[key];
-    });
-});
+// 2. Fix the mock functions with proper types
+const mockCollection = {
+    findOne: jest.fn<any>(),
+    find: jest.fn<any>().mockReturnValue({ toArray: jest.fn<any>() }),
+    insertOne: jest.fn<any>(),
+    updateOne: jest.fn<any>(),
+    deleteOne: jest.fn<any>()
+} as any as Collection<any>;
 
 beforeAll(() => {
-    // Setup runs before all tests
+    const container = Container.getInstance();
+
+    // Create basic mocks with explicit undefined returns for void functions
+    const mocks = {
+        didService: {
+            createDID: jest.fn().mockResolvedValue({ id: 'test-did' }),
+            verifyDID: jest.fn().mockResolvedValue(true),
+            resolveDID: jest.fn().mockResolvedValue({ didDocument: { id: 'test-did' } }),
+            revokeDID: jest.fn().mockResolvedValue(true)
+        },
+        walletService: {
+            initialize: jest.fn().mockResolvedValue(undefined),
+            createWallet: jest.fn().mockResolvedValue({ address: 'test-address' }),
+            sign: jest.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
+            verify: jest.fn().mockResolvedValue(true),
+            getBalance: jest.fn().mockResolvedValue('1000'),
+            getPublicKey: jest.fn().mockReturnValue(new Uint8Array([1, 2, 3]))
+        },
+        keyManager: {
+            generateKeyPair: jest.fn().mockResolvedValue({
+                publicKey: new Uint8Array([1, 2, 3]),
+                privateKey: new Uint8Array([4, 5, 6])
+            }),
+            sign: jest.fn().mockResolvedValue(new Uint8Array([7, 8, 9])),
+            verify: jest.fn().mockResolvedValue(true),
+            getPublicKeyFromPrivate: jest.fn().mockReturnValue(new Uint8Array([1, 2, 3])),
+            publicKeyToHex: jest.fn().mockReturnValue('010203'),
+            publicKeyFromHex: jest.fn().mockReturnValue(new Uint8Array([1, 2, 3]))
+        },
+        storageService: {
+            initialize: jest.fn().mockResolvedValue(undefined),
+            store: jest.fn().mockResolvedValue('test-id'),
+            get: jest.fn().mockResolvedValue(null),
+            update: jest.fn().mockResolvedValue(true),
+            delete: jest.fn().mockResolvedValue(true)
+        }
+    };
+
+    // Register services with explicit undefined returns for void functions
+    container.register('didService', mocks.didService);
+    container.register('walletService', mocks.walletService);
+    container.register('keyManager', mocks.keyManager);
+    container.register('storageService', mocks.storageService);
+    container.register('unitOfWork', {
+        startTransaction: jest.fn().mockResolvedValue(undefined),
+        commitTransaction: jest.fn().mockResolvedValue(undefined),
+        rollbackTransaction: jest.fn().mockResolvedValue(undefined),
+        getRepository: jest.fn().mockReturnValue({
+            findById: jest.fn().mockResolvedValue(null),
+            findOne: jest.fn().mockResolvedValue(null),
+            findMany: jest.fn().mockResolvedValue([]),
+            create: jest.fn().mockResolvedValue('test-id'),
+            update: jest.fn().mockResolvedValue(true),
+            delete: jest.fn().mockResolvedValue(true)
+        })
+    } as IUnitOfWork);
+
+    global.testContext = { container, mocks };
+});
+
+beforeEach(() => {
+    jest.clearAllMocks();
 });
 
 afterAll(() => {
-    // Cleanup runs after all tests
-}); 
+    if (global.testContext) {
+        global.testContext.container.cleanup();
+        global.testContext = undefined;
+    }
+});

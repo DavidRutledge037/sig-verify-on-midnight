@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { UserRepository } from '../../../src/database/repositories/user.repository';
-import DatabaseClient from '../../../src/database/client';
+import { DatabaseClient } from '../../../src/database/client';
 
 describe('UserRepository', () => {
     let repository: UserRepository;
@@ -8,6 +8,12 @@ describe('UserRepository', () => {
     beforeAll(async () => {
         await DatabaseClient.getInstance().connect();
         repository = new UserRepository();
+    });
+
+    beforeEach(async () => {
+        // Clean up existing data
+        const client = await DatabaseClient.getInstance();
+        await client.query('DELETE FROM users');
     });
 
     afterAll(async () => {
