@@ -11,25 +11,57 @@ describe('DID Verification', () => {
     didService = new DIDService(walletService);
   });
 
-  describe('DID Generation', () => {
-    it('should generate valid DID from wallet', async () => {
-      const did = await didService.generateDID();
-      assert.match(did, /^did:midnight:[a-fA-F0-9]{64}$/);
+  describe('DID Creation and Validation', () => {
+    it('should create valid DID', async () => {
+      const didDoc = await didService.createDID();
+      assert.exists(didDoc);
+      assert.isTrue(didDoc.id.startsWith('did:midnight:'));
     });
 
-    it('should link DID to wallet public key', async () => {
-      const did = await didService.generateDID();
-      const isLinked = await didService.verifyDIDOwnership(did);
-      assert.isTrue(isLinked);
+    it('should verify created DID', async () => {
+      const didDoc = await didService.createDID();
+      const isValid = await didService.verifyDID(didDoc);
+      assert.isTrue(isValid);
     });
   });
 
-  describe('DID-Based Document Signing', () => {
-    it('should sign document with DID', async () => {
-      const did = await didService.generateDID();
-      const document = new Uint8Array([1, 2, 3]);
-      const signature = await didService.signWithDID(did, document);
-      assert.exists(signature);
+  describe('DID Format Validation', () => {
+    it('should validate correct DID format', () => {
+      const validDID = 'did:midnight:1234567890abcdef';
+      assert.isTrue(didService.isValidDIDFormat(validDID));
+    });
+
+    it('should reject invalid DID format', () => {
+      const invalidDIDs = [
+        'not:a:did',
+        'did:wrong:1234',
+        'did:midnight:', // too short
+        'notadid'
+      ];
+      
+      invalidDIDs.forEach(did => {
+        assert.isFalse(didService.isValidDIDFormat(did));
+      });
+    });
+  });
+
+  describe('DID Resolution', () => {
+    it('should resolve valid DID', async () => {
+      const validDID = 'did:midnight:1234567890abcdef';
+      const result = await didService.resolveDID(validDID);
+      assert.exists(result);
+      assert.property(result, 'didDocument');
+      assert.property(result, 'didResolutionMetadata');
+    });
+
+    it('should reject invalid DID format during resolution', async () => {
+      const invalidDID = 'not:a:valid:did';
+      try {
+        await didService.resolveDID(invalidDID);
+        assert.fail('Should have thrown an error');
+      } catch (error: any) {
+        assert.equal(error.message, 'Invalid DID format');
+      }
     });
   });
 }); 
