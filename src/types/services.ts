@@ -1,5 +1,5 @@
 import { DIDDocument, DIDResolutionResult } from './did.types';
-import { Collection, MongoClient } from 'mongodb';
+import { Collection, MongoClient, Document, Db } from 'mongodb';
 import { ProofSubmission, TransactionDetails, Block } from './transaction';
 
 export interface IDIDService {
@@ -56,4 +56,60 @@ export interface IProofService {
 export interface IDIDResolver {
     resolve(didId: string): Promise<DIDResolutionResult>;
     getSupportedMethods(): string[];
-} 
+}
+
+export interface KeyPair {
+  publicKey: Uint8Array;
+  privateKey: Uint8Array;
+}
+
+export interface VerificationMethod {
+  id: string;
+  type: string;
+  controller: string;
+  publicKeyMultibase: string;
+}
+
+export interface DIDDocument {
+  id: string;
+  controller: string;
+  verificationMethod: VerificationMethod[];
+  authentication: string[];
+  assertionMethod: string[];
+  keyAgreement: string[];
+  capabilityInvocation: string[];
+  capabilityDelegation: string[];
+  service: Array<{
+    id: string;
+    type: string;
+    serviceEndpoint: string;
+  }>;
+  created: string;
+  updated: string;
+}
+
+export interface DatabaseService {
+  uri: string;
+  client: MongoClient | null;
+  isConnected(): boolean;
+  connect(): Promise<void>;
+  disconnect(): Promise<void>;
+  getCollection<T extends Document>(name: string): Collection<T>;
+}
+
+export interface WalletService {
+  initialize(): Promise<void>;
+  getClient(): Promise<any>;
+  getAddress(): Promise<string>;
+  signMessage(message: Uint8Array): Promise<Uint8Array>;
+  verify(message: Uint8Array, signature: Uint8Array, publicKey: Uint8Array): Promise<boolean>;
+}
+
+export interface DIDStorageService {
+  initialize(): Promise<void>;
+  storeDID(document: DIDDocument): Promise<boolean>;
+  getDIDDocument(did: string): Promise<DIDDocument | null>;
+  updateDID(did: string, document: DIDDocument): Promise<boolean>;
+  deleteDID(did: string): Promise<boolean>;
+  exists(did: string): Promise<boolean>;
+}

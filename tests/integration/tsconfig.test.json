@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": [
+    "**/*.test.ts"
+  ],
+  "exclude": [
+    "../database/**/*",
+    "../document.test.ts"
+  ],
+  "compilerOptions": {
+    "types": ["mocha", "chai", "node"],
+    "esModuleInterop": true
+  }
+} 
