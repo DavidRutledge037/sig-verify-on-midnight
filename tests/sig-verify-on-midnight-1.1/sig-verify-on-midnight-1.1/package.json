@@ -1,0 +1,21 @@
+{
+  "name": "sig-verify-on-midnight",
+  "version": "1.1.0",
+  "description": "Secure document signing on the Midnight Network",
+  "scripts": {
+    "test:mocha": "mocha -r ts-node/register 'tests/{unit,integration}/**/*.ts' --reporter spec --colors | tee /dev/tty | grep -o '[0-9]\\+ passing\\|[0-9]\\+ failing' | awk '{printf \"\\033[32m%s\\033[0m\\n\", $0}'",
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "chai": "^4.3.7",
+    "mocha": "^10.2.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.4"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.3.5",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "^20.2.5"
+  }
+}
