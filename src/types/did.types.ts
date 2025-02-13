@@ -1,5 +1,6 @@
 import { Document } from 'mongodb';
 import { KeyPair } from './key.types.js';
+import { DIDDocument, DIDResolutionResult } from './did.types';
 
 export type DIDStatus = 'active' | 'revoked' | 'suspended';
 
@@ -38,18 +39,13 @@ export interface DIDResolutionResult {
     };
     didDocumentMetadata: {
         created: string;
-        updated?: string;
-        status?: 'active' | 'revoked';
     };
 }
 
 export interface DIDService {
-    createDID(): Promise<DIDDocument>;
-    verifyDID(did: DIDDocument): Promise<boolean>;
-    resolveDID(didId: string): Promise<DIDResolutionResult>;
-    revokeDID(didId: string): Promise<boolean>;
-    isValidDIDFormat(did: string): boolean;
-    addService(didId: string, service: any): Promise<boolean>;
+    generateDID(): Promise<string>;
+    validateDIDFormat(did: string): boolean;
+    signWithDID(did: string, document: Uint8Array): Promise<Uint8Array>;
 }
 
 export interface DIDStorageOptions {

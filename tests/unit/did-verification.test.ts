@@ -52,7 +52,7 @@ describe('DID Verification', () => {
         await didService.signWithDID(did, emptyDoc);
         assert.fail('Should have thrown an error');
       } catch (error: any) {
-        assert.include(error.message, 'Empty document');
+        assert.equal(error.message, 'Empty document');
       }
     });
 
@@ -63,7 +63,7 @@ describe('DID Verification', () => {
         await didService.signWithDID(invalidDID, document);
         assert.fail('Should have thrown an error');
       } catch (error: any) {
-        assert.include(error.message, 'Invalid DID format');
+        assert.equal(error.message, 'Invalid DID format');
       }
     });
   });
