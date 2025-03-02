@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["src/lib/wallet/lace-wallet.ts"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*-simulator.ts"]
+}
