@@ -1,0 +1,114 @@
+pragma language_version >= 0.14.0;
+
+import CompactStandardLibrary;
+
+// KYC Status enumeration
+enum KYCStatus {
+    None,
+    Pending,
+    Verified,
+    Rejected
+}
+
+// KYC Record structure
+struct KYCRecord {
+    holder: Bytes<32>,            // DID of the holder
+    status: KYCStatus,           // Current KYC status
+    verifier: Bytes<32>,         // DID of the verifier
+    timestamp: Bytes<32>         // When the record was last updated
+}
+
+// Ledger state
+ledger records: Map<Bytes<32>, KYCRecord>;  // Map of holder to KYC record
+ledger verifiers: Map<Bytes<32>, Field>;    // Map of authorized verifier DIDs
+ledger admin: Bytes<32>;
+ledger kycCounter: Counter;
+
+witness local_secret_key(): Bytes<32>;
+
+export circuit generate_key_proof(instance: Bytes<32>): Bytes<32> {
+    const sk = local_secret_key();
+    const proof = persistent_hash<Vector<3, Bytes<32>>>([pad(32, "kyc:pk:"), instance, sk]);
+    return disclose(proof);
+}
+
+// Admin management
+export circuit set_admin(new_admin: Bytes<32>): [] {
+    const current_proof = generate_key_proof(kycCounter as Field as Bytes<32>);
+    assert admin == pad(32, "") || admin == current_proof
+        "Only current admin can set new admin";
+    admin = new_admin;
+    return [];
+}
+
+// Verifier management
+export circuit add_verifier(verifier: Bytes<32>): [] {
+    const caller = generate_key_proof(kycCounter as Field as Bytes<32>);
+    assert caller == admin
+        "Only admin can add verifiers";
+    verifiers.insert(verifier, 1);
+    return [];
+}
+
+export circuit remove_verifier(verifier: Bytes<32>): [] {
+    const caller = generate_key_proof(kycCounter as Field as Bytes<32>);
+    assert caller == admin
+        "Only admin can remove verifiers";
+    verifiers.insert(verifier, 0);
+    return [];
+}
+
+// KYC management
+export circuit submit_kyc(): [] {
+    const holder = generate_key_proof(kycCounter as Field as Bytes<32>);
+    kycCounter.increment(1);
+    const timestamp = persistent_hash<Vector<2, Bytes<32>>>([pad(32, "kyc:time:"), kycCounter as Field as Bytes<32>]);
+    
+    records.insert(holder, KYCRecord {
+        holder: holder,
+        status: KYCStatus.Pending,
+        verifier: pad(32, ""),
+        timestamp: timestamp
+    });
+    return [];
+}
+
+export circuit verify_kyc(holder: Bytes<32>, approve: Field): [] {
+    const verifier = generate_key_proof(kycCounter as Field as Bytes<32>);
+    assert verifiers.member(verifier) && verifiers.lookup(verifier) == 1
+        "Not authorized as verifier";
+    assert records.member(holder)
+        "KYC record not found";
+    
+    const record = records.lookup(holder);
+    assert record.status == KYCStatus.Pending
+        "KYC not in pending state";
+    
+    const timestamp = persistent_hash<Vector<2, Bytes<32>>>([pad(32, "kyc:time:"), kycCounter as Field as Bytes<32>]);
+    
+    records.insert(holder, KYCRecord {
+        holder: holder,
+        status: approve == 1 ? KYCStatus.Verified : KYCStatus.Rejected,
+        verifier: verifier,
+        timestamp: timestamp
+    });
+    return [];
+}
+
+// Query functions
+export circuit get_kyc_status(holder: Bytes<32>): KYCRecord {
+    assert records.member(holder)
+        "KYC record not found";
+    return disclose(records.lookup(holder));
+}
+
+export circuit is_verified(holder: Bytes<32>): Field {
+    assert records.member(holder)
+        "KYC record not found";
+    const record = records.lookup(holder);
+    return disclose(record.status == KYCStatus.Verified ? 1 : 0);
+}
+
+export circuit is_verifier(did: Bytes<32>): Field {
+    return disclose(verifiers.member(did) ? verifiers.lookup(did) : 0);
+}

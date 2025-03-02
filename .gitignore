@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+.next/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.DS_Store
+*.pem
+.vercel
+.turbo
+
+# IDE
+.idea/
+.vscode/
+
+# Logs and debugging
+coverage/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Package managers
+.yarn/
+.pnp.*
+yarn.lock
+
+# Binary and build files
+bin/
+*.prover
+*.verifier
+*.bzkir
+*.zkir
+*.wasm
+*.bin
+*.vp
+
+# Build artifacts
+*.zkbin
+config/wallet-example/
+examples_backup/
+
+# Cache
+.next/
+.turbo/
+dist/
+build/

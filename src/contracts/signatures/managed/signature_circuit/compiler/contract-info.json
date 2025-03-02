@@ -1,0 +1,109 @@
+{
+  "circuits": [
+    {
+      "name": "generate_key_proof",
+      "pure": false,
+      "arguments": [
+        {
+          "name": "instance",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Bytes",
+        "length": 32
+      }
+    },
+    {
+      "name": "set_admin",
+      "pure": false,
+      "arguments": [
+        {
+          "name": "new_admin",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "sign_document",
+      "pure": false,
+      "arguments": [
+        {
+          "name": "doc",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        },
+        {
+          "name": "did",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        },
+        {
+          "name": "doc_type",
+          "type": {
+            "type-name": "Enum",
+            "name": "DocumentType",
+            "elements": [
+              "Basic",
+              "Legal",
+              "Regulated"
+            ]
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "commit_to_did",
+      "pure": false,
+      "arguments": [
+        {
+          "name": "did",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Bytes",
+        "length": 32
+      }
+    },
+    {
+      "name": "verify_signature",
+      "pure": false,
+      "arguments": [
+        {
+          "name": "doc",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Field"
+      }
+    }
+  ]
+}

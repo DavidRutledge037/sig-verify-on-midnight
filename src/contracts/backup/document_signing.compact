@@ -1,0 +1,148 @@
+// Document Signing Contract
+// Requires KYC verification and DID acceptance
+
+circuit DocumentSigning {
+    // Document structure
+    struct Document {
+        id: Hash,
+        owner: Address,
+        contentHash: Hash,
+        timestamp: Uint<64>,
+        status: DocumentStatus
+    }
+
+    // Signature structure
+    struct Signature {
+        signer: Address,
+        documentId: Hash,
+        signatureHash: Hash,
+        timestamp: Uint<64>,
+        did: String<100>
+    }
+
+    // Document status
+    enum DocumentStatus {
+        Pending = 0,
+        Signed = 1,
+        Rejected = 2,
+        Expired = 3
+    }
+
+    // External contract interfaces
+    external {
+        kyc: KYCVerification
+    }
+
+    // State management
+    ledger {
+        // Document registry
+        documents: Map<Hash, Document>,
+        // Signature registry
+        signatures: Map<Hash, Signature>,
+        // Document access control
+        documentAccess: Map<Hash, Array<Address, 10>>
+    }
+
+    // Register new document
+    witness register_document(
+        documentId: Hash,
+        contentHash: Hash,
+        allowedSigners: Array<Address, 10>
+    ) -> Bool {
+        // Create document record
+        let doc = Document {
+            id: documentId,
+            owner: tx.sender,
+            contentHash: contentHash,
+            timestamp: tx.timestamp,
+            status: DocumentStatus.Pending
+        };
+        
+        // Store document
+        documents.insert(documentId, doc);
+        
+        // Set access control
+        documentAccess.insert(documentId, allowedSigners);
+        
+        return true
+    }
+
+    // Sign document
+    witness sign_document(
+        documentId: Hash,
+        signatureHash: Hash,
+        did: String<100>
+    ) -> Bool {
+        // Verify document exists
+        assert(documents.contains(documentId));
+        let doc = documents.get(documentId);
+        
+        // Verify document is pending
+        assert(doc.status == DocumentStatus.Pending);
+        
+        // Verify signer is allowed
+        let allowed = documentAccess.get(documentId);
+        assert(contains(allowed, tx.sender));
+        
+        // Verify KYC status
+        assert(kyc.is_verified(tx.sender, tx.timestamp));
+        
+        // Verify DID assignment
+        assert(kyc.verify_did_assignment(tx.sender, did));
+        
+        // Create signature
+        let sig = Signature {
+            signer: tx.sender,
+            documentId: documentId,
+            signatureHash: signatureHash,
+            timestamp: tx.timestamp,
+            did: did
+        };
+        
+        // Store signature
+        signatures.insert(signatureHash, sig);
+        
+        // Update document status
+        doc.status = DocumentStatus.Signed;
+        documents.insert(documentId, doc);
+        
+        return true
+    }
+
+    // Verify signature
+    circuit verify_signature(
+        documentId: Hash,
+        signatureHash: Hash,
+        signer: Address
+    ) -> Bool {
+        // Verify signature exists
+        assert(signatures.contains(signatureHash));
+        let sig = signatures.get(signatureHash);
+        
+        // Verify signature matches document and signer
+        return sig.documentId == documentId && 
+               sig.signer == signer
+    }
+
+    // Get document status
+    circuit get_document_status(
+        documentId: Hash
+    ) -> DocumentStatus {
+        assert(documents.contains(documentId));
+        let doc = documents.get(documentId);
+        return doc.status
+    }
+
+    // Helper: Check if address is in array
+    private contains(
+        arr: Array<Address, 10>,
+        addr: Address
+    ) -> Bool {
+        for i in 0..arr.length {
+            if arr[i] == addr {
+                return true
+            }
+        }
+        return false
+    }
+}

@@ -1,0 +1,138 @@
+pragma language_version >= 0.14.0;
+
+import CompactStandardLibrary;
+
+// Document metadata structure
+struct DocumentMetadata {
+    hash: Bytes<32>,            // Document hash
+    owner: Bytes<32>,           // DID of document owner
+    required_kyc: Uint<8>,      // Required KYC level to sign
+    timestamp: Field,           // Creation timestamp
+    status: DocumentStatus      // Current document status
+}
+
+// Document status enumeration
+enum DocumentStatus {
+    Pending,    // Awaiting signatures
+    Signed,     // All signatures complete
+    Revoked     // Document revoked
+}
+
+// Ledger state
+ledger documents: Map<Bytes<32>, DocumentMetadata>;  // Map of document hash to metadata
+ledger access_control: Map<Bytes<32>, Vector<32, Bytes<32>>>;  // Map of document hash to authorized DIDs
+
+witness local_secret_key(): Bytes<32>;
+
+// Register a new document
+export circuit register_document(
+    doc_hash: Bytes<32>,
+    required_kyc: Uint<8>,
+    authorized_dids: Vector<32, Bytes<32>>
+): [] {
+    // Verify caller owns the DID
+    const owner_did = prove_did_ownership(local_secret_key());
+    
+    // Create document metadata
+    const metadata = DocumentMetadata {
+        hash: doc_hash,
+        owner: owner_did,
+        required_kyc: required_kyc,
+        timestamp: current_time(),
+        status: DocumentStatus::Pending
+    };
+    
+    // Store document metadata and access control
+    documents.insert(doc_hash, metadata);
+    access_control.insert(doc_hash, authorized_dids);
+    
+    return [];
+}
+
+// Check if a DID is authorized to access a document
+export circuit check_access(
+    doc_hash: Bytes<32>,
+    did: Bytes<32>
+): Bool {
+    // Get document metadata and access list
+    const metadata = documents.lookup(doc_hash);
+    const authorized = access_control.lookup(doc_hash);
+    
+    // Check if DID is owner
+    if (metadata.owner == did) {
+        return true;
+    }
+    
+    // Check if DID is in authorized list
+    for (let i = 0; i < 32; i++) {
+        if (authorized[i] == did) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// Generate proof of document access without revealing DID
+export circuit prove_document_access(
+    doc_hash: Bytes<32>
+): Bytes<32> {
+    const did = prove_did_ownership(local_secret_key());
+    assert check_access(doc_hash, did)
+        "DID not authorized to access document";
+        
+    // Return proof that doesn't reveal the DID
+    return disclose(persistent_hash<Vector<3, Bytes<32>>>([
+        pad(32, "doc:access:"),
+        doc_hash,
+        did
+    ]));
+}
+
+// Update document status (owner only)
+export circuit update_status(
+    doc_hash: Bytes<32>,
+    new_status: DocumentStatus
+): [] {
+    const did = prove_did_ownership(local_secret_key());
+    let metadata = documents.lookup(doc_hash);
+    
+    assert metadata.owner == did
+        "Only document owner can update status";
+        
+    metadata.status = new_status;
+    documents.insert(doc_hash, metadata);
+    
+    return [];
+}
+
+// Add authorized DID (owner only)
+export circuit add_authorized_did(
+    doc_hash: Bytes<32>,
+    new_did: Bytes<32>
+): [] {
+    const did = prove_did_ownership(local_secret_key());
+    const metadata = documents.lookup(doc_hash);
+    
+    assert metadata.owner == did
+        "Only document owner can add authorized DIDs";
+        
+    let authorized = access_control.lookup(doc_hash);
+    
+    // Find empty slot and add new DID
+    let added = false;
+    for (let i = 0; i < 32; i++) {
+        if (authorized[i] == pad(32, "")) {
+            authorized[i] = new_did;
+            added = true;
+            break;
+        }
+    }
+    
+    assert added
+        "No space for additional authorized DIDs";
+        
+    access_control.insert(doc_hash, authorized);
+    
+    return [];
+}

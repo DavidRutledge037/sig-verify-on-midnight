@@ -1,0 +1,362 @@
+{
+  "circuits": [
+    {
+      "name": "generate_key_proof",
+      "pure": false,
+      "arguments": [
+        {
+          "name": "instance",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Bytes",
+        "length": 32
+      }
+    },
+    {
+      "name": "public_key",
+      "pure": true,
+      "arguments": [
+        {
+          "name": "sk",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        },
+        {
+          "name": "instance",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Bytes",
+        "length": 32
+      }
+    },
+    {
+      "name": "set_admin",
+      "pure": false,
+      "arguments": [
+        {
+          "name": "new_admin",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "create_did",
+      "pure": false,
+      "arguments": [
+        {
+          "name": "verification_methods",
+          "type": {
+            "type-name": "Vector",
+            "length": 32,
+            "type": {
+              "type-name": "Struct",
+              "name": "VerificationMethod",
+              "elements": [
+                {
+                  "name": "id",
+                  "type": {
+                    "type-name": "Bytes",
+                    "length": 32
+                  }
+                },
+                {
+                  "name": "controller",
+                  "type": {
+                    "type-name": "Bytes",
+                    "length": 32
+                  }
+                },
+                {
+                  "name": "publicKey",
+                  "type": {
+                    "type-name": "Bytes",
+                    "length": 32
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "services",
+          "type": {
+            "type-name": "Vector",
+            "length": 32,
+            "type": {
+              "type-name": "Struct",
+              "name": "Service",
+              "elements": [
+                {
+                  "name": "id",
+                  "type": {
+                    "type-name": "Bytes",
+                    "length": 32
+                  }
+                },
+                {
+                  "name": "serviceType",
+                  "type": {
+                    "type-name": "Bytes",
+                    "length": 32
+                  }
+                },
+                {
+                  "name": "endpoint",
+                  "type": {
+                    "type-name": "Bytes",
+                    "length": 32
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Bytes",
+        "length": 32
+      }
+    },
+    {
+      "name": "update_did",
+      "pure": false,
+      "arguments": [
+        {
+          "name": "did_id",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        },
+        {
+          "name": "verification_methods",
+          "type": {
+            "type-name": "Vector",
+            "length": 32,
+            "type": {
+              "type-name": "Struct",
+              "name": "VerificationMethod",
+              "elements": [
+                {
+                  "name": "id",
+                  "type": {
+                    "type-name": "Bytes",
+                    "length": 32
+                  }
+                },
+                {
+                  "name": "controller",
+                  "type": {
+                    "type-name": "Bytes",
+                    "length": 32
+                  }
+                },
+                {
+                  "name": "publicKey",
+                  "type": {
+                    "type-name": "Bytes",
+                    "length": 32
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "services",
+          "type": {
+            "type-name": "Vector",
+            "length": 32,
+            "type": {
+              "type-name": "Struct",
+              "name": "Service",
+              "elements": [
+                {
+                  "name": "id",
+                  "type": {
+                    "type-name": "Bytes",
+                    "length": 32
+                  }
+                },
+                {
+                  "name": "serviceType",
+                  "type": {
+                    "type-name": "Bytes",
+                    "length": 32
+                  }
+                },
+                {
+                  "name": "endpoint",
+                  "type": {
+                    "type-name": "Bytes",
+                    "length": 32
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "deactivate_did",
+      "pure": false,
+      "arguments": [
+        {
+          "name": "did_id",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "get_did_document",
+      "pure": false,
+      "arguments": [
+        {
+          "name": "did_id",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Struct",
+        "name": "DIDDocument",
+        "elements": [
+          {
+            "name": "id",
+            "type": {
+              "type-name": "Bytes",
+              "length": 32
+            }
+          },
+          {
+            "name": "controller",
+            "type": {
+              "type-name": "Bytes",
+              "length": 32
+            }
+          },
+          {
+            "name": "verificationMethods",
+            "type": {
+              "type-name": "Vector",
+              "length": 32,
+              "type": {
+                "type-name": "Struct",
+                "name": "VerificationMethod",
+                "elements": [
+                  {
+                    "name": "id",
+                    "type": {
+                      "type-name": "Bytes",
+                      "length": 32
+                    }
+                  },
+                  {
+                    "name": "controller",
+                    "type": {
+                      "type-name": "Bytes",
+                      "length": 32
+                    }
+                  },
+                  {
+                    "name": "publicKey",
+                    "type": {
+                      "type-name": "Bytes",
+                      "length": 32
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "services",
+            "type": {
+              "type-name": "Vector",
+              "length": 32,
+              "type": {
+                "type-name": "Struct",
+                "name": "Service",
+                "elements": [
+                  {
+                    "name": "id",
+                    "type": {
+                      "type-name": "Bytes",
+                      "length": 32
+                    }
+                  },
+                  {
+                    "name": "serviceType",
+                    "type": {
+                      "type-name": "Bytes",
+                      "length": 32
+                    }
+                  },
+                  {
+                    "name": "endpoint",
+                    "type": {
+                      "type-name": "Bytes",
+                      "length": 32
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "is_deactivated",
+      "pure": false,
+      "arguments": [
+        {
+          "name": "did_id",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Field"
+      }
+    }
+  ]
+}

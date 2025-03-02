@@ -1,0 +1,129 @@
+pragma language_version >= 0.14.0;
+
+import CompactStandardLibrary;
+
+// DID Record structure
+struct DIDRecord {
+    did: Bytes<32>,             // DID identifier
+    public_key: Bytes<32>,      // Public key associated with DID
+    kyc_level: Uint<8>,         // KYC level (0=none, 1=basic, 2=standard, 3=enhanced)
+    groups: Vector<4, Bytes<32>> // Group memberships (up to 4 groups)
+}
+
+// Ledger state
+ledger dids: Map<Bytes<32>, DIDRecord>;  // Map of DID to DID record
+ledger groups: Map<Bytes<32>, Vector<32, Bytes<32>>>;  // Map of group ID to member DIDs
+ledger admin: Bytes<32>;
+
+witness local_secret_key(): Bytes<32>;
+
+// Generate proof of DID ownership
+export circuit prove_did_ownership(did: Bytes<32>): Bytes<32> {
+    const sk = local_secret_key();
+    const record = dids.lookup(did);
+    
+    // Verify ownership using secret key
+    const derived_pk = persistent_hash<Vector<2, Bytes<32>>>([pad(32, "did:pk:"), sk]);
+    assert record.public_key == derived_pk
+        "Invalid DID ownership proof";
+        
+    return disclose(derived_pk);
+}
+
+// Register new DID
+export circuit register_did(did: Bytes<32>, public_key: Bytes<32>): [] {
+    // Ensure DID doesn't exist
+    assert !dids.member(did)
+        "DID already registered";
+        
+    // Create new DID record
+    const record = DIDRecord {
+        did: did,
+        public_key: public_key,
+        kyc_level: 0 as Uint<8>,
+        groups: Vector<4, Bytes<32>>([pad(32, ""), pad(32, ""), pad(32, ""), pad(32, "")])
+    };
+    
+    dids.insert(did, record);
+    return [];
+}
+
+// Update KYC level (admin only)
+export circuit update_kyc_level(did: Bytes<32>, level: Uint<8>): [] {
+    const proof = prove_did_ownership(admin);
+    assert proof == admin
+        "Only admin can update KYC levels";
+        
+    assert level <= 3 as Uint<8>
+        "Invalid KYC level";
+        
+    let record = dids.lookup(did);
+    record.kyc_level = level;
+    dids.insert(did, record);
+    return [];
+}
+
+// Add DID to group (admin only)
+export circuit add_to_group(did: Bytes<32>, group_id: Bytes<32>): [] {
+    const proof = prove_did_ownership(admin);
+    assert proof == admin
+        "Only admin can manage groups";
+        
+    // Get current group members
+    let members = groups.member(group_id) 
+        ? groups.lookup(group_id)
+        : Vector<32, Bytes<32>>([pad(32, ""); 32]);
+        
+    // Add DID to group
+    let added = false;
+    for (let i = 0; i < 32; i++) {
+        if (members[i] == pad(32, "")) {
+            members[i] = did;
+            added = true;
+            break;
+        }
+    }
+    
+    assert added
+        "Group is full";
+        
+    groups.insert(group_id, members);
+    
+    // Update DID record
+    let record = dids.lookup(did);
+    for (let i = 0; i < 4; i++) {
+        if (record.groups[i] == pad(32, "")) {
+            record.groups[i] = group_id;
+            break;
+        }
+    }
+    dids.insert(did, record);
+    
+    return [];
+}
+
+// Prove group membership without revealing DID
+export circuit prove_group_membership(did: Bytes<32>, group_id: Bytes<32>): Bytes<32> {
+    // First prove DID ownership
+    const ownership_proof = prove_did_ownership(did);
+    
+    // Check group membership
+    const members = groups.lookup(group_id);
+    let is_member = false;
+    for (let i = 0; i < 32; i++) {
+        if (members[i] == did) {
+            is_member = true;
+            break;
+        }
+    }
+    
+    assert is_member
+        "DID is not a member of this group";
+        
+    // Return a proof of membership that doesn't reveal the DID
+    return disclose(persistent_hash<Vector<3, Bytes<32>>>([
+        pad(32, "group:member:"),
+        group_id,
+        ownership_proof
+    ]));
+}

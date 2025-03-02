@@ -1,0 +1,123 @@
+pragma language_version >= 0.14.0;
+
+import CompactStandardLibrary;
+
+// DID Document structure
+export struct VerificationMethod {
+    id: Bytes<32>,
+    controller: Bytes<32>,
+    publicKey: Bytes<32>
+}
+
+export struct Service {
+    id: Bytes<32>,
+    serviceType: Bytes<32>,
+    endpoint: Bytes<32>
+}
+
+export struct DIDDocument {
+    id: Bytes<32>,
+    controller: Bytes<32>,
+    verificationMethods: Vector<32, VerificationMethod>,
+    services: Vector<32, Service>
+}
+
+// Ledger state
+ledger documents: Map<Bytes<32>, DIDDocument>;  // Map of DID to DID Document
+ledger deactivated: Map<Bytes<32>, Field>;  // Map of deactivated DIDs
+ledger admin: Bytes<32>;
+ledger didCounter: Counter;
+
+witness local_secret_key(): Bytes<32>;
+
+export circuit generate_key_proof(instance: Bytes<32>): Bytes<32> {
+    const sk = local_secret_key();
+    const proof = persistent_hash<Vector<3, Bytes<32>>>([pad(32, "did:pk:"), instance, sk]);
+    return disclose(proof);
+}
+
+export circuit public_key(sk: Bytes<32>, instance: Bytes<32>): Bytes<32> {
+    return persistent_hash<Vector<3, Bytes<32>>>([pad(32, "did:pk:"), instance, sk]);
+}
+
+// Admin management
+export circuit set_admin(new_admin: Bytes<32>): [] {
+    const current_proof = generate_key_proof(didCounter as Field as Bytes<32>);
+    assert admin == pad(32, "") || admin == current_proof
+        "Only current admin can set new admin";
+    admin = new_admin;
+    return [];
+}
+
+// DID management
+export circuit create_did(
+    verification_methods: Vector<32, VerificationMethod>,
+    services: Vector<32, Service>
+): Bytes<32> {
+    const controller = generate_key_proof(didCounter as Field as Bytes<32>);
+    didCounter.increment(1);
+    const did_id = generate_key_proof(didCounter as Field as Bytes<32>);
+    
+    assert !documents.member(did_id)
+        "DID already exists";
+    
+    documents.insert(did_id, DIDDocument {
+        id: did_id,
+        controller: controller,
+        verificationMethods: verification_methods,
+        services: services
+    });
+    return did_id;
+}
+
+export circuit update_did(
+    did_id: Bytes<32>,
+    verification_methods: Vector<32, VerificationMethod>,
+    services: Vector<32, Service>
+): [] {
+    const controller = generate_key_proof(didCounter as Field as Bytes<32>);
+    assert documents.member(did_id)
+        "DID does not exist";
+    assert !deactivated.member(did_id) || deactivated.lookup(did_id) == 0
+        "DID is deactivated";
+    
+    const doc = documents.lookup(did_id);
+    assert doc.controller == controller
+        "Not authorized to update DID";
+    
+    documents.insert(did_id, DIDDocument {
+        id: did_id,
+        controller: controller,
+        verificationMethods: verification_methods,
+        services: services
+    });
+    return [];
+}
+
+export circuit deactivate_did(did_id: Bytes<32>): [] {
+    const controller = generate_key_proof(didCounter as Field as Bytes<32>);
+    assert documents.member(did_id)
+        "DID does not exist";
+    assert !deactivated.member(did_id) || deactivated.lookup(did_id) == 0
+        "DID is already deactivated";
+    
+    const doc = documents.lookup(did_id);
+    assert doc.controller == controller
+        "Not authorized to deactivate DID";
+    
+    deactivated.insert(did_id, 1);
+    return [];
+}
+
+// Query functions
+export circuit get_did_document(did_id: Bytes<32>): DIDDocument {
+    assert documents.member(did_id)
+        "DID does not exist";
+    return disclose(documents.lookup(did_id));
+}
+
+export circuit is_deactivated(did_id: Bytes<32>): Field {
+    assert documents.member(did_id)
+        "DID does not exist";
+    return disclose(deactivated.member(did_id) ? deactivated.lookup(did_id) : 0);
+}
